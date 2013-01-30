@@ -3114,3 +3114,8 @@ questions about PHP licensing, please contact license@php.net.
 2013-01-04 15:14:41  [MAIN] webclient 127.0.0.1:58147 request /favicon.ico was not found
 2013-01-04 15:15:41  [MAIN] Shutdown request received. Shutting down
 2013-01-04 15:15:41  [MAIN] Shutdown complete
+2013-01-30 11:56:16  [MAIN] Cluster statistics daemon started
+2013-01-30 11:56:16  [MAIN] Webserver SSL support is enabled
+2013-01-30 11:56:16  [MAIN] Webserver started and listening on port 8888
+2013-01-30 12:51:55  [MAIN] Shutdown request received. Shutting down
+2013-01-30 12:51:55  [MAIN] Shutdown complete
