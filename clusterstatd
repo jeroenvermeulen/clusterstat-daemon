@@ -1,0 +1,36 @@
+#!/usr/bin/env php -q
+<?php
+try {
+    // prepare environment
+    require 'includes/bootstrap.php';
+    
+    // daemonize the script
+    Daemonizer::daemonize();
+    Log::info('Cluster statistics daemon started');
+    
+    // initialize webserver
+    $webserver = new Webserver();
+    $webserver->setCredentials(Config::get('http_username'), Config::get('http_password'));
+    $webserver->setRoot(APP_ROOT . 'web');
+    
+    // initialize cluster statistics collection
+    $stats = new ClusterStats();
+    $webserver->registerController('/', array($stats, 'homepage'));
+    $webserver->registerController('/runtimestats.js', array($stats, 'getRuntimeStats'));
+    
+    // register timers
+    $timer = new Timer();
+    $timer->register(array('Log','rotate'), 30);
+    
+    // enter main application loop
+    for(;;) {
+        $webserver->handleClients(250000);
+        
+        // dispatch pending timer and system signals
+        $timer->checkTimers();
+        pcntl_signal_dispatch();
+    }
+} catch(Exception $e) {
+    Log::error('Fatal error: '.$e->getMessage());
+    exit($e->getCode());
+}
