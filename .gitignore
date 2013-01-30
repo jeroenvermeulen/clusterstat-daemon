@@ -1,0 +1,5 @@
+/.idea
+/SOURCES/*.tgz
+/BUILD/*
+/BUILDROOT/*
+*~

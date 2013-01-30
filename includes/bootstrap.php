@@ -6,6 +6,7 @@
  * @package     ClusterStatisticsDaemon
  * @author      Bas Peters <bas.peters@nedstars.nl>
  */
+date_default_timezone_set('Europe/Amsterdam');
 
 // install exception error handler
 function __errorHandler($errorNumber, $errorString, $errorFile, $errorLine) {
