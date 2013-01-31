@@ -19,7 +19,7 @@ try {
     $webserver->registerController('/runtimestats.js', array($stats, 'getRuntimeStats'));
 
     $procstats = new ProcStats();
-    $webserver->registerController('/procstats', array($procstats, 'getProcStats'));
+    $webserver->registerController('/procstats', array($procstats, 'getProcStats'), 'application/json' );
 
     // register timers
     $timer = new Timer();

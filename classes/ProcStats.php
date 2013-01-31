@@ -1,261 +1,375 @@
 <?php
-/**
- * Created by JetBrains PhpStorm.
- * User: jeroen
- * Date: 30/01/13
- * Time: 13:29
- * To change this template use File | Settings | File Templates.
- */
+
 class ProcStats
 {
-    protected $procPath  = '/proc';
-    protected $statData  = array();
-    protected $totalData = array();
-    protected $database  = null;
+    protected $_procPath   = '/proc';
+    protected $_statData   = array();
+    protected $_totalData  = array();
+    protected $_database   = null;
+    protected $_uidcache   = array();
+    protected $_sqliteFile = 'userstats.sqlite';
 
+    /**
+     * Constructor - initialize some data.
+     */
     public function __construct()
     {
-        $this->statData = array();
-        $this->totalData['procs'] = 0;
-        $this->totalData['jiff'] = 0;
+        $this->_totalData['procs'] = 0;
+        $this->_totalData['jiff'] = 0;
     }
 
+    /**
+     * Destructor - clean up stuff
+     */
     public function __destruct()
     {
-        $this->database = null; // PDO will cleanup the connection
+        $this->_database = null; // PDO will cleanup the connection
     }
 
     /**
-     * Returns a JSON array of runtime information about the workermanger and its host system
-     * @return array Runtime information array
+     * Returns a JSON array with process statitics
+     *
+     * @return array Process statistics.
      */
-    public function getProcStats($path, $queryString) {
+    public function getProcStats($path, $queryString)
+    {
         $this->_collectProcStats();
-        $aUserProcStats = $this->_getUserProcStats();
-        $aUserProcStats['TOTAL'] = $this->totalData;
+        //$this->_debugTree();
+
+        $userProcStats = $this->_getUserProcStats();
+
+        $userProcStats['TOTAL'][''] = $this->_totalData;
         $dbData = $this->_getFromDatabase();
-        foreach ( $aUserProcStats as $user => $userdata )
-        {
-            if ( !empty($dbData[$user]) )
-            {
-                if ( $dbData[$user]['lastvalue'] > $userdata['jiff'] )
-                {
-                    $dbData[$user]['offset'] += $dbData[$user]['lastvalue'];
+        $users = array_keys( $userProcStats );
+        foreach ( $users as $user ) {
+            $names = array_keys( $userProcStats[$user] );
+            foreach ( $names as $name ) {
+                if ( !empty( $dbData[$user][$name] ) ) {
+                    if ( $dbData[$user][$name]['lastvalue'] > $userProcStats[$user][$name]['jiff'] ) {
+                        $dbData[$user][$name]['offset'] += $dbData[$user][$name]['lastvalue'];
+                    }
                 }
+                else {
+                    $dbData[$user][$name]['linuxuser'] = $user;
+                    $dbData[$user][$name]['process']   = $name;
+                    $dbData[$user][$name]['offset']    = 0;
+                }
+                $dbData[$user][$name]['lastvalue']   = $userProcStats[$user][$name]['jiff'] ;
+                $userProcStats[$user][$name]['jiff'] += $dbData[$user][$name]['offset'];
             }
-            else
-            {
-                $dbData[$user]['linuxuser'] = $user;
-                $dbData[$user]['offset'] = 0;
-            }
-            $dbData[$user]['lastvalue']     = $userdata['jiff'] ;
-            $aUserProcStats[$user]['jiff'] += $dbData[$user]['offset'];
         }
         $this->_writeToDatabase( $dbData );
-        return json_encode( $aUserProcStats );
+        return $this->_jsonIndent( json_encode( $userProcStats ) );
     }
 
     /**
+     * Get an SQLite database connection
+     *
      * @return PDO
      */
     private function _getDatabase()
     {
-        if ( empty($this->database) )
-        {
+        if ( empty($this->_database) ) {
+            if ( !file_exists($this->_sqliteFile) ) {
+                $templateFile = 'templates/'.$this->_sqliteFile;
+                if ( file_exists($templateFile) ) {
+                    $copyOK = copy( $templateFile, $this->_sqliteFile );
+                    if ( !$copyOK ) {
+                        throw new Exception('Copy of SQLite file from template to "'.$this->_sqliteFile.'" failed.');
+                    }
+                }
+                else {
+                    throw new Exception('SQLite file does not exist, and template database file does also not exist.');
+                }
+            }
             // Create (connect to) SQLite database in file
-            $this->database = new PDO('sqlite:userstats.sqlite3');
+            $this->_database = new PDO('sqlite:'.$this->_sqliteFile);
             // Set errormode to exceptions
-            $this->database->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $this->_database->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         }
-        return $this->database;
+        return $this->_database;
     }
 
+    /**
+     * Read process data to SQLite database that is used to detect and fixes
+     * resets of counters.
+     *
+     * @return array - the row data
+     */
     private function _getFromDatabase()
     {
         $result = array();
         $database = $this->_getDatabase();
-        $rowset   = $database->query('SELECT linuxuser,lastvalue,offset FROM jiffy');
+        $rowset   = $database->query('SELECT linuxuser,process,lastvalue,offset FROM jiffy');
         foreach ($rowset as $row) {
-            $result[ $row['linuxuser'] ] = $row;
+            $result[ $row['linuxuser'] ][ $row['process'] ] = $row;
         }
         return $result;
     }
 
+    /**
+     * Write process data to SQLite database that is used to detect and fixes
+     * resets of counters.
+     *
+     * @param array $data - the row data to write
+     */
     private function _writeToDatabase( $data )
     {
         $database = $this->_getDatabase();
-        $sql = 'REPLACE INTO jiffy (linuxuser,lastvalue,offset) VALUES (:linuxuser,:lastvalue,:offset)';
+        $sql = 'REPLACE INTO jiffy (linuxuser,process,lastvalue,offset) VALUES (:linuxuser,:process,:lastvalue,:offset)';
         $stmt = $database->prepare($sql);
 
-        $user = '';
-        $lastvalue = '';
-        $offset = '';
+        $linuxuser   = '';
+        $process     = '';
+        $lastvalue   = '';
+        $offset      = '';
 
         // Bind parameters to statement variables
-        $stmt->bindParam(':linuxuser',      $user);
-        $stmt->bindParam(':lastvalue', $lastvalue);
-        $stmt->bindParam(':offset',    $offset);
+        $stmt->bindParam( ':linuxuser',   $linuxuser );
+        $stmt->bindParam( ':process',     $process );
+        $stmt->bindParam( ':lastvalue',   $lastvalue );
+        $stmt->bindParam( ':offset',      $offset );
 
-        // Loop thru all messages and execute prepared insert statement
-        foreach ($data as $row) {
-            // Set values to bound variables
-            $user      = $row['linuxuser'];
-            $lastvalue = $row['lastvalue'];
-            $offset    = $row['offset'];
+        // Loop through all messages and execute prepared insert statement
+        foreach ($data as $userdata) {
+            foreach ($userdata as $row) {
+                // Set values to bound variables
+                $linuxuser   = $row['linuxuser'];
+                $process     = $row['process'];
+                $lastvalue   = $row['lastvalue'];
+                $offset      = $row['offset'];
 
-            // Execute statement
-            $stmt->execute();
+                // Execute statement
+                $stmt->execute();
+            }
         }
     }
 
+    /**
+     * Loop trough all process dirs in /proc and collect process data.
+     * The process data is saved within this class.
+     *
+     * @throws Exception
+     */
     private function _collectProcStats()
     {
-        $aAllProcStat = glob($this->procPath.'/*/stat');
-
-        foreach ( $aAllProcStat as $sProcStatFile )
+        $dirHandle = opendir($this->_procPath);
+        if ( false === $dirHandle )
         {
-            $sProcDir = dirname($sProcStatFile);
-            $iProcId  = basename($sProcDir);
-            if ( is_numeric($iProcId) )
-            {
-                $this->_getProcInfo( $iProcId );
+            throw new Exception('Could not open proc filesystem in "'.$this->_procPath.'".');
+        }
+        else
+        {
+            while (false !== ($entry = readdir($dirHandle))) {
+                if ( is_numeric($entry) ) {
+                    $this->_getProcInfo( $entry );
+                }
             }
         }
     }
 
+    /**
+     * @return array
+     */
     private function _getUserProcStats()
     {
-        $aUserProcStat = array();
+        $result = array();
 
-        foreach ( $this->statData as $aProcInfo )
+        foreach ( $this->_statData as $aProcInfo )
         {
-            $iUid     = $aProcInfo['iUid'];
+            $user     = $aProcInfo['user'];
+            $procName = $aProcInfo['name'];
 
-            if (  isset($aProcInfo['iParent'])
-               && isset($this->statData[$aProcInfo['iParent']]['iUid'])
-               )
+            if ( !isset( $result[$user][$procName] ) )
             {
-                if ( $iUid == $this->statData[$aProcInfo['iParent']]['iUid'] )
-                {
-                    // Parent process has the same user id, we don't count this child's jiffies
-                    $aUserProcStat[$iUid]['procs']++;
-                    continue;
-                }
+                $result[$user][$procName]['procs'] = 0;
+                $result[$user][$procName]['jiff'] = 0;
             }
 
-            if ( !isset($aUserProcStat[$iUid]) )
-            {
-                $aUserProcStat[$iUid]['procs'] = 0;
-                $aUserProcStat[$iUid]['jiff'] = 0;
-            }
+            $result[$user][$procName]['procs']++;
+            $iJiff = $aProcInfo['thisJiff'];
+            $iJiff += $aProcInfo['deadChildJiff'];
 
-            $iJiff = $aProcInfo['iThisJiff'];
-            $iJiff += $aProcInfo['iChildJiff'];
-
-            if ( isset($aProcInfo['aChildPids']) )
-            {
-                foreach ( $aProcInfo['aChildPids'] as $iChildPid )
-                {
-                    if ( isset($this->statData[$iChildPid]['iUid'])
-                       &&  $iUid != $this->statData[$iChildPid]['iUid'] )
-                    {
-                        // Child has other owner, substract Jiffies
-                        if ( !empty($this->statData[$iChildPid]['iThisJiff']) )
-                        {
-                            $iJiff -= $this->statData[$iChildPid]['iThisJiff'];
-                        }
-                        if ( !empty($this->statData[$iChildPid]['iChildJiff']) )
-                        {
-                            $iJiff -= $this->statData[$iChildPid]['iChildJiff'];
-                        }
-                    }
-                }
-            }
-
-            $aUserProcStat[$iUid]['procs']++;
-            $aUserProcStat[$iUid]['jiff'] += $iJiff;
+            $result[$user][$procName]['jiff'] += $iJiff;
         }
 
-        ksort($aUserProcStat);
-
-        $aResult = array();
-        foreach ( $aUserProcStat as $iUid => $aData )
+        ksort( $result );
+        $users = array_keys($result);
+        foreach ( $users as $user )
         {
-            $aUserInfo = posix_getpwuid($iUid);
-            $sUser = ( empty($aUserInfo['name']) ) ? $iUid : $aUserInfo['name'];
-            $aResult[ $sUser ] = $aData;
+            ksort( $result[$user] );
         }
 
-        return $aResult;
+        return $result;
     }
 
-    private function _getProcInfo( $iProcId )
+    /**
+     * Get the details from /proc for one process ID.
+     *
+     * @param $pid integer - Process ID to get the data for.
+     */
+    private function _getProcInfo( $pid )
     {
-        $aResult = array();
+        $procStatFile =   $this->_procPath.'/'.$pid.'/stat';
+        $procStatusFile = $this->_procPath.'/'.$pid.'/status';
 
-        $sProcStatFile =   $this->procPath.'/'.$iProcId.'/stat';
-        $sProcStatusFile = $this->procPath.'/'.$iProcId.'/status';
-
-        if (  is_readable($sProcStatFile)
-           && is_readable($sProcStatusFile)
+        if (  is_readable($procStatFile)
+           && is_readable($procStatusFile)
            )
         {
-            $lines = file($sProcStatFile);
-            $sStatLine = reset( $lines );
-            $aStatFields = preg_split('|\s+|',$sStatLine);
-            $aStatusFields = array();
+            $lines        = file( $procStatFile );
+            $statLine     = reset( $lines );
+            $statFields   = preg_split( '|\s+|', $statLine );
+            $statusFields = array();
 
-            $lines = file( $sProcStatusFile );
+            $lines = file( $procStatusFile );
             foreach ( $lines as $line )
             {
-                $aMatch = array();
-                if ( preg_match('/^(\w+):\s*(.+)$/',$line,$aMatch) )
+                $match = array();
+                if ( preg_match( '/^(\w+):\s*(.+)$/', $line, $match ) )
                 {
-                    // Info about the status fields:
+                    // Info about the '/proc/PID/status' fields:
                     // http://www.kernel.org/doc/man-pages/online/pages/man5/proc.5.html
                     // search for "/proc/[pid]/status"
-                    $aStatusFields[ $aMatch[1] ] = $aMatch[2];
+                    $statusFields[ $match[1] ] = $match[2];
                 }
             }
 
-            $aUids = preg_split( '/\s+/', $aStatusFields['Uid'] );
-            $iUid = ( empty($aUids[1]) ) ? fileowner($sProcStatFile) : $aUids[1];
+            $uids = preg_split( '/\s+/', $statusFields['Uid'] );
+            $uid  = ( empty($uids[1]) ) ? fileowner($procStatFile) : $uids[1];
 
-            // For info about the fields:
+            // For info about the '/proc/PID/stat' fields:
             // http://www.kernel.org/doc/man-pages/online/pages/man5/proc.5.html
             // search for "/proc/[pid]/stat"
 
-            $sName = $aStatFields[1];
-            $sName = trim( $sName, '()-' );
-            $iParentPid = $aStatFields[3];
+            $name      = $statFields[1];
+            $name      = trim( $name, '()-' );
+            $name      = preg_replace('/\/\d+$/','',$name);
+            $parentPid = $statFields[3];
 
-            $this->statData[$iProcId]['iPid'] = $iProcId;
-            $this->statData[$iProcId]['sName'] = $sName;
-            $this->statData[$iProcId]['iParent'] = $iParentPid;
-            if ( !empty($iParentPid) )
-            {
-                $this->statData[$iParentPid]['aChildPids'][] = $iProcId;
+            if ( !isset( $this->_statData[$pid]['childPids'] ) ) {
+                $this->_statData[$pid]['childPids'] = array();
+            }
+            $this->_statData[$pid]['pid']       = $pid;
+            $this->_statData[$pid]['name']      = $name;
+            $this->_statData[$pid]['parentPid'] = $parentPid;
+            if ( !empty($parentPid) ) {
+                $this->_statData[$parentPid]['childPids'][] = $pid;
             }
 
-            $this->statData[$iProcId]['iUid'] = $iUid;
+            $this->_statData[$pid]['uid']  = $uid;
+            $this->_statData[$pid]['user'] = $this->_uidToUser($uid);
 
-            $this->statData[$iProcId]['iThisJiff'] = 0;
-            $this->statData[$iProcId]['iThisJiff'] += $aStatFields[13]; // utime = user mode
-            $this->statData[$iProcId]['iThisJiff'] += $aStatFields[14]; // stime = kernel mode
+            $this->_statData[$pid]['thisJiff'] = 0;
+            $this->_statData[$pid]['thisJiff'] += $statFields[13]; // utime = user mode
+            $this->_statData[$pid]['thisJiff'] += $statFields[14]; // stime = kernel mode
 
-            $this->statData[$iProcId]['iChildJiff'] = 0;
-            $this->statData[$iProcId]['iChildJiff'] += $aStatFields[15]; // cutime = children user mode
-            $this->statData[$iProcId]['iChildJiff'] += $aStatFields[16]; // cstime = cnildren kernel mode
+            $this->_statData[$pid]['deadChildJiff'] = 0;
+            $this->_statData[$pid]['deadChildJiff'] += $statFields[15]; // cutime = ended children user mode
+            $this->_statData[$pid]['deadChildJiff'] += $statFields[16]; // cstime = ended children kernel mode
 
-            $this->totalData['procs']++;
-            if ( 1 == $aStatFields[3] ) // This process is started directly under the 'init' process
-            {
-                $this->totalData['jiff'] += $this->statData[$iProcId]['iThisJiff'];
-                $this->totalData['jiff'] += $this->statData[$iProcId]['iChildJiff'];
-            }
-
-            $aResult = $this->statData[$iProcId];
+            $this->_totalData['procs']++;
+            $this->_totalData['jiff'] += $this->_statData[$pid]['thisJiff'];
+            $this->_totalData['jiff'] += $this->_statData[$pid]['deadChildJiff'];
         }
-        return $aResult;
+    }
+
+    /**
+     * Get username for a user id.
+     *
+     * @param int $uid - User ID to get username for
+     * @return string  - Username
+     */
+    function _uidToUser( $uid )
+    {
+        if ( empty($this->_uidcache[$uid]) ) {
+            $aUserInfo = posix_getpwuid($uid);
+            if ( empty($aUserInfo['name']) ) {
+                $this->_uidcache[$uid] =  '['.$uid.']';
+            }
+            else {
+                $this->_uidcache[$uid] = $aUserInfo['name'];
+            }
+        }
+        return $this->_uidcache[$uid];
+    }
+
+    /**
+     * Recursive function to print tree with process info, for debugging.
+     *
+     * @param int $pid   - Process Id to print info for
+     * @param int $level - Nesting level
+     */
+    function _debugTree( $pid=1, $level=0 )
+    {
+        echo str_repeat(' ',$level*8);
+        echo $pid . ' - '.$this->_statData[$pid]['name'];
+        echo ' - '.$this->_uidToUser($this->_statData[$pid]['uid']);
+        echo ' | ';
+        echo $this->_statData[$pid]['thisJiff'];
+        echo ' / ';
+        echo $this->_statData[$pid]['deadChildJiff'];
+        echo "\n";
+        foreach ( $this->_statData[$pid]['childPids'] as $childPid )
+        {
+            $this->_debugTree( $childPid, $level+1 );
+        }
+    }
+
+    /**
+     * Indent a JSON string to be more readable for debugging
+     *
+     * @param string $json
+     * @return string
+     */
+    private function _jsonIndent($json)
+    {
+        $result      = '';
+        $pos         = 0;
+        $strLen      = strlen($json);
+        $indentStr   = '  ';
+        $newLine     = "\n";
+        $prevChar    = '';
+        $outOfQuotes = true;
+
+        for ($i=0; $i<=$strLen; $i++) {
+
+            // Grab the next character in the string.
+            $char = substr($json, $i, 1);
+
+            // Are we inside a quoted string?
+            if ($char == '"' && $prevChar != '\\') {
+                $outOfQuotes = !$outOfQuotes;
+
+                // If this character is the end of an element,
+                // output a new line and indent the next line.
+            } else if(($char == '}' || $char == ']') && $outOfQuotes) {
+                $result .= $newLine;
+                $pos --;
+                for ($j=0; $j<$pos; $j++) {
+                    $result .= $indentStr;
+                }
+            }
+
+            // Add the character to the result string.
+            $result .= $char;
+
+            // If the last character was the beginning of an element,
+            // output a new line and indent the next line.
+            if (($char == ',' || $char == '{' || $char == '[') && $outOfQuotes) {
+                $result .= $newLine;
+                if ($char == '{' || $char == '[') {
+                    $pos ++;
+                }
+
+                for ($j = 0; $j < $pos; $j++) {
+                    $result .= $indentStr;
+                }
+            }
+
+            $prevChar = $char;
+        }
+
+        return $result;
     }
 }
