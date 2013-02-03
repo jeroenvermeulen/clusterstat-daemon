@@ -17,11 +17,11 @@
 				$('#main_load').html(data.load);
 				$('#main_dispatchers').html(data.dispatchers);
 			});
-			
+
 			// schedule a new timeslot to update
 			window.setTimeout(updateRuntimeStats, 1000);
 		}
-		
+
 		/**
 		 * Run the timed update to update the UI with new statistics from the backend
 		 */
@@ -82,7 +82,7 @@
 <body>
 	<div id="header">ClusterStatDaemon</div>
 	<div id="subheader">
-		This process is responsible for collecting cluster application server customer metrics		
+		This process is responsible for collecting cluster application server customer metrics
 	</div>
 	<div id="runtime">
 		Main Memory Usage: <span id="main_memory_usage">{$runtimestats.memory_usage}</span>
@@ -90,7 +90,10 @@
 		Server Load: <span id="main_load">{$runtimestats.load}</span>
 	</div>
 	<div id="contents">
-		
+        <br />
+        <ul>
+            <li><a href="procstats">Process Statistics</a></li>
+        </ul>
 	</div>
 </body>
 </html>

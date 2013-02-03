@@ -19,11 +19,14 @@ try {
     $webserver->registerController('/runtimestats.js', array($stats, 'getRuntimeStats'));
 
     $procstats = new ProcStats();
-    $webserver->registerController('/procstats', array($procstats, 'getProcStats'), 'application/json' );
+    $webserver->registerController('/procstats', array($procstats, 'getWebPage') );
+    $webserver->registerController('/procstats_json', array($procstats, 'getProcStats'), 'application/json' );
 
     // register timers
     $timer = new Timer();
     $timer->register(array('Log','rotate'), 30);
+
+    $timer->register(array($procstats,'collectProcStats'), 0.2, true);
 
     // enter main application loop
     for(;;) {

@@ -8,6 +8,7 @@ class ProcStats
     protected $_database   = null;
     protected $_uidcache   = array();
     protected $_sqliteFile = 'userstats.sqlite';
+    protected $_statFifo   = array();
 
     /**
      * Constructor - initialize some data.
@@ -27,11 +28,54 @@ class ProcStats
     }
 
     /**
+     * Renders the web page of the process statistics
+     *
+     * @param String $path The path of the http request
+     * @param String $queryString The querystring of the http request
+     *
+     * @return String Html contents of the homepage
+     */
+    public function getWebPage($path, $queryString) {
+        $template = new HtmlTemplate('procstats.tpl');
+        $template->setVar('procstats', $this->getProcStats($path, $queryString) );
+        return $template->parse();
+    }
+
+    /**
      * Returns a JSON array with process statitics
      *
      * @return array Process statistics.
      */
     public function getProcStats($path, $queryString)
+    {
+        $result = array();
+        if (10 <= count($this->_statFifo) )
+        {
+            $startStats = end($this->_statFifo);
+            $endStats = reset($this->_statFifo);
+            $users = array_keys($startStats);
+            foreach ( $users as $user )
+            {
+                $result[$user]['TOTAL']['jiff'] = 0;
+                $procs = array_keys($startStats[$user]);
+                foreach ( $procs as $proc )
+                {
+                    if (  !empty($startStats[$user][$proc]['jiff'])
+                       && !empty($endStats[$user][$proc]['jiff'])
+                    )
+                    {
+                        $diffJiff = $endStats[$user][$proc]['jiff'] - $startStats[$user][$proc]['jiff'];
+                        $diffJiff = max( 0, $diffJiff );
+                        $result[$user][$proc]['jiff'] = max( 0, $diffJiff );
+                        $result[$user]['TOTAL']['jiff'] += max( 0, $diffJiff );
+                    }
+                }
+            }
+        }
+        return $this->_jsonIndent( json_encode($result) );
+    }
+
+    public function collectProcStats()
     {
         $this->_collectProcStats();
         //$this->_debugTree();
@@ -59,7 +103,12 @@ class ProcStats
             }
         }
         $this->_writeToDatabase( $dbData );
-        return $this->_jsonIndent( json_encode( $userProcStats ) );
+
+        if (10 <= count($this->_statFifo) )
+        {
+            array_pop($this->_statFifo);
+        }
+        array_unshift($this->_statFifo,$userProcStats);
     }
 
     /**
