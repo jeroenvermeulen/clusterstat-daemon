@@ -9,6 +9,7 @@ class ProcStats
     protected $_uidcache   = array();
     protected $_sqliteFile = 'userstats.sqlite';
     protected $_statFifo   = array();
+    protected $_statFifoLen = 3;
 
     /**
      * Constructor - initialize some data.
@@ -49,14 +50,15 @@ class ProcStats
     public function getProcStats($path, $queryString)
     {
         $result = array();
-        if (10 <= count($this->_statFifo) )
+        if ($this->_statFifoLen <= count($this->_statFifo) )
         {
             $startStats = end($this->_statFifo);
             $endStats = reset($this->_statFifo);
             $users = array_keys($startStats);
             foreach ( $users as $user )
             {
-                $result[$user]['TOTAL']['jiff'] = 0;
+                $result[$user]['TOTAL']['jiff']    = 0;
+                $result[$user]['TOTAL']['counter'] = 0;
                 $procs = array_keys($startStats[$user]);
                 foreach ( $procs as $proc )
                 {
@@ -66,13 +68,16 @@ class ProcStats
                     {
                         $diffJiff = $endStats[$user][$proc]['jiff'] - $startStats[$user][$proc]['jiff'];
                         $diffJiff = max( 0, $diffJiff );
-                        $result[$user][$proc]['jiff'] = max( 0, $diffJiff );
-                        $result[$user]['TOTAL']['jiff'] += max( 0, $diffJiff );
+                        $result[$user][$proc]['jiff']    = max( 0, $diffJiff );
+                        $result[$user][$proc]['counter'] = $endStats[$user][$proc]['jiff'];
+                        $result[$user]['TOTAL']['jiff']    += max( 0, $diffJiff );
+                        $result[$user]['TOTAL']['counter'] += $endStats[$user][$proc]['jiff'];
                     }
                 }
             }
         }
-        return $this->_jsonIndent( json_encode($result) );
+        //return $this->_jsonIndent( json_encode($result) );
+        return json_encode($result);
     }
 
     public function collectProcStats()
@@ -104,7 +109,7 @@ class ProcStats
         }
         $this->_writeToDatabase( $dbData );
 
-        if (10 <= count($this->_statFifo) )
+        if ($this->_statFifoLen <= count($this->_statFifo) )
         {
             array_pop($this->_statFifo);
         }

@@ -10,94 +10,152 @@
 
     <script type="text/javascript">
 
-        jQuery(function () {
+        $(function () {
 
             var users = [];
+            var userCount = 0;
             var chart;
+            var lastUpdate = 0;
 
-            function updateChart() {
-                jQuery.getJSON('procstats_json', function(data) {
-                    var jiffies = [];
-                    users.forEach(function(key) {
-                        if ( 'TOTAL' != key ) {
-                            jiffies.push( data[ key ]['TOTAL']['jiff'] );
-                        }
-                    });
-                    chart.series[0].setData(jiffies);
-                    chart.redraw();
-                });
-                window.setTimeout( updateChart, 1000 );
+            function getMilliTime() {
+                var now = new Date()
+                return ( 1000 * now.getTime() ) + now.getMilliseconds();
             }
 
-            jQuery(document).ready(function() {
+
+            function updateChart() {
+
+                jQuery.ajax({
+                    dataType: "json",
+                    url: 'procstats_json',
+                    success: function(data) {
+                        if ( 'undefined' != typeof data ) {
+                            var time = (new Date()).getTime();
+                            var shift =  ( 50 < chart.series[0].data.length );
+
+                            for ( var nr=0; nr < userCount; nr++ ) {
+                                var user = users[nr];
+                                if ( 'undefined' != typeof data[user]
+                                     && 'undefined' != typeof data[user]['TOTAL']
+                                     && 'undefined' != typeof data[user]['TOTAL']['jiff'] ) {
+                                    var val = data[ user ]['TOTAL']['jiff'];
+                                    chart.series[nr].addPoint([time, val], true, shift);
+                                }
+                            };
+
+                            var nowMilli = getMilliTime();
+                            var spent = nowMilli - lastUpdate;
+                            var sleep = Math.max( 1, 1000 - spent );
+                            lastUpdate = nowMilli;
+                            window.setTimeout( updateChart, sleep );
+                        }
+                    },
+                    error: function() {
+                        window.setTimeout( updateChart, 1000 );
+                    }
+                });
+            }
+
+            $(document).ready(function() {
 
                 var procStats = {$procstats};
                 var jiffies = [];
+
+                var time = (new Date()).getTime();
+                var userNr = 0;
                 for ( var key in procStats ) {
                     if ( 'TOTAL' != key ) {
-                        users.push( key );
-                        jiffies.push( procStats[ key ]['TOTAL']['jiff'] );
+                        if ( 2000 < procStats[ key ]['TOTAL']['counter'] ) {
+                            users.push( key );
+                            var val = procStats[ key ]['TOTAL']['jiff'];
+                            obj = { name: key, data: [{ x: time, y: val }] };
+                            jiffies[userNr] = obj;
+                            userNr++;
+                        }
                     }
                 }
+                userCount = userNr;
+
+                Highcharts.setOptions({
+                    global: {
+                        useUTC: false
+                    }
+                });
 
                 chart = new Highcharts.Chart({
                     chart: {
                         renderTo: 'container',
-                        type: 'column',
-                        margin: [ 50, 50, 100, 80]
-                    },
-                    title: {
-                        text: 'Jiffies per user'
-                    },
-                    xAxis: {
-                        categories: users,
-                        labels: {
-                            rotation: -90,
-                            align: 'right',
-                            style: {
-                                fontSize: '13px',
-                                fontFamily: 'Verdana, sans-serif'
+                        type: 'spline',
+                        marginRight: 130,
+                        events: {
+                            load: function() {
+                                lastUpdate = getMilliTime();
+                                window.setTimeout( updateChart, 100 );
                             }
                         }
+                    },
+                    title: {
+                        text: 'Processor Usage'
+                    },
+                    xAxis: {
+                        type: 'datetime',
+                        tickPixelInterval: 150
                     },
                     yAxis: {
                         min: 0,
-                        max: 1000,
                         title: {
                             text: 'Jiffies'
-                        }
-                    },
-                    legend: {
-                        enabled: false
+                        },
+                        plotLines: [{
+                            value: 0,
+                            width: 1,
+                            color: '#808080'
+                        }]
                     },
                     tooltip: {
                         formatter: function() {
-                            return '<b>'+ this.x +'</b><br/>'+
-                                    'Jiffies: '+ Highcharts.numberFormat(this.y, 1);
+                            return '<b>'+ this.series.name +'</b><br/>'+
+                                    Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) +'<br/>'+
+                                    'Jiffies: ' + Highcharts.numberFormat(this.y, 2);
                         }
                     },
-                    series: [{
-                        name: 'Jiffies',
-                        data: jiffies,
-                        dataLabels: {
-                            enabled: true,
-                            rotation: 0,
-                            color: '#FFFFFF',
-                            align: 'center',
-                            x: 0,
-                            y: 20,
-                            style: {
-                                fontSize: '10px',
-                                fontFamily: 'Verdana, sans-serif'
+                    legend: {
+                        layout: 'vertical',
+                        align: 'right',
+                        verticalAlign: 'top',
+                        x: -10,
+                        y: 100,
+                        borderWidth: 0
+                    },
+                    exporting: {
+                        enabled: false
+                    },
+                    plotOptions: {
+                        spline: {
+                            lineWidth: 3,
+                            states: {
+                                hover: {
+                                    lineWidth: 4
+                                }
+                            },
+                            marker: {
+                                enabled: false,
+                                states: {
+                                    hover: {
+                                        enabled: true,
+                                        symbol: 'circle',
+                                        radius: 5,
+                                        lineWidth: 1
+                                    }
+                                }
                             }
                         }
-                    }]
+                    },
+                    series: jiffies
                 });
-
-                window.setTimeout( updateChart, 1000 );
             });
-
         });
+
     </script>
 </head>
 <body>

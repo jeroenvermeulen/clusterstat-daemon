@@ -26,7 +26,7 @@ try {
     $timer = new Timer();
     $timer->register(array('Log','rotate'), 30);
 
-    $timer->register(array($procstats,'collectProcStats'), 0.2, true);
+    $timer->register(array($procstats,'collectProcStats'), 0.5, true);
 
     // enter main application loop
     for(;;) {
