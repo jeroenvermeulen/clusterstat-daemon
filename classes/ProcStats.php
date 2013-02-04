@@ -88,26 +88,29 @@ class ProcStats
 
         $userProcStats = $this->_getUserProcStats();
 
-        $dbData = $this->_getFromDatabase();
-        $users = array_keys( $userProcStats );
-        foreach ( $users as $user ) {
-            $names = array_keys( $userProcStats[$user] );
-            foreach ( $names as $name ) {
-                if ( !empty( $dbData[$user][$name] ) ) {
-                    if ( $dbData[$user][$name]['lastvalue'] > $userProcStats[$user][$name]['jiff'] ) {
-                        $dbData[$user][$name]['offset'] += $dbData[$user][$name]['lastvalue'];
-                    }
-                }
-                else {
-                    $dbData[$user][$name]['linuxuser'] = $user;
-                    $dbData[$user][$name]['process']   = $name;
-                    $dbData[$user][$name]['offset']    = 0;
-                }
-                $dbData[$user][$name]['lastvalue']   = $userProcStats[$user][$name]['jiff'] ;
-                $userProcStats[$user][$name]['jiff'] += $dbData[$user][$name]['offset'];
-            }
-        }
-        $this->_writeToDatabase( $dbData );
+// TODO: Fix this. Currently it produces nonsense when after stopping a Siege.
+//        $dbData = $this->_getFromDatabase();
+//        $users = array_keys( $userProcStats );
+//        foreach ( $users as $user ) {
+//            $names = array_keys( $userProcStats[$user] );
+//            foreach ( $names as $name ) {
+//                if ( !empty( $dbData[$user][$name] ) ) {
+//                    // Previous data found in database
+//                    if ( $dbData[$user][$name]['lastvalue'] > $userProcStats[$user][$name]['jiff'] ) {
+//                        $dbData[$user][$name]['offset'] += $dbData[$user][$name]['lastvalue'];
+//                    }
+//                }
+//                else {
+//                    // No entry found in database, create initial data.
+//                    $dbData[$user][$name]['linuxuser'] = $user;
+//                    $dbData[$user][$name]['process']   = $name;
+//                    $dbData[$user][$name]['offset']    = 0;
+//                }
+//                $dbData[$user][$name]['lastvalue']   = $userProcStats[$user][$name]['jiff'] ;
+//                $userProcStats[$user][$name]['jiff'] += $dbData[$user][$name]['offset'];
+//            }
+//        }
+//        $this->_writeToDatabase( $dbData );
 
         if ($this->_statFifoLen <= count($this->_statFifo) )
         {
@@ -246,6 +249,8 @@ class ProcStats
 
             $result[$user][$procName]['procs']++;
             $iJiff = $aProcInfo['thisJiff'];
+            // TODO: Do we want to take in account jiffies from dead children?
+            //       Currently it acts strange after ending a Siege.
             //$iJiff += $aProcInfo['deadChildJiff'];
 
             $result[$user][$procName]['jiff'] += $iJiff;

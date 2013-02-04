@@ -1,34 +1,36 @@
-$(function () {
+jQuery(function () {
 
-    var users = [];
-    var userCount = 0;
+    var userProcs = [];
+    var userProcCount = 0;
     var chart;
     var lastUpdate = 0;
-
-    function getMilliTime() {
-        var now = new Date()
-        return ( 1000 * now.getTime() ) + now.getMilliseconds();
-    }
 
     function initialData(procStats) {
         var series = [];
 
-        var time = (new Date()).getTime();
-        var userNr = 0;
-        for ( var key in procStats ) {
-            if ( 'TOTAL' != key ) {
-                if ( 'undefined' != typeof procStats[ key ]['TOTAL']
-                    && 'undefined' != typeof procStats[ key ]['TOTAL']['counter']
-                    &&  2000 < procStats[ key ]['TOTAL']['counter'] ) {
-                    users[userNr] = key;
-                    var val = procStats[ key ]['TOTAL']['jiff'];
-                    obj = { name: key, data: [{ x: time, y: val }] };
-                    series[userNr] = obj;
-                    userNr++;
+        var nowTimeMilli = (new Date()).getTime();
+        var userProcNr = 0;
+        for ( var user in procStats ) {
+            if ( 'TOTAL' != user ) {
+                for ( var proc in procStats[ user ] )
+                {
+                    if (
+                         (    ('TOTAL' != proc && 'root' != user)
+                           || ('TOTAL' == proc && 'root' == user)
+                         )
+                         && 'undefined' != typeof procStats[ user ][proc]
+                         && 'undefined' != typeof procStats[ user ][proc]['counter']
+                         &&  2000 < procStats[user][proc]['counter']
+                       ) {
+                        userProcs[userProcNr] = { user: user, proc: proc };
+                        var val               = procStats[ user ][proc]['jiff'];
+                        series[userProcNr]    = { name: user+' - '+proc, data: [{ x: nowTimeMilli, y: val }] };
+                        userProcNr++;
+                    }
                 }
             }
         }
-        userCount = userNr;
+        userProcCount = userProcNr;
 
         Highcharts.setOptions({
             global: {
@@ -40,11 +42,11 @@ $(function () {
             chart: {
                 renderTo: 'container',
                 type: 'spline',
-                marginRight: 130,
+                marginRight: 230,
                 events: {
                     load: function() {
-                        lastUpdate = getMilliTime();
-                        window.setTimeout( updateChart, 500 );
+                        lastUpdate = nowTimeMilli;
+                        window.setTimeout( updateChart, 1000 );
                     }
                 }
             },
@@ -111,38 +113,47 @@ $(function () {
 
     function updateChart() {
         jQuery.ajax({
-            dataType: "json",
             url: 'procstats_json',
-            success: function(data) {
-                if ( 'undefined' != typeof data ) {
-                    var time = (new Date()).getTime();
-                    var shift =  ( 50 < chart.series[0].data.length );
-
-                    for ( var nr=0; nr < userCount; nr++ ) {
-                        var user = users[nr];
-                        if ( 'undefined' != typeof data[user]
-                            && 'undefined' != typeof data[user]['TOTAL']
-                            && 'undefined' != typeof data[user]['TOTAL']['jiff'] ) {
-                            var val = data[ user ]['TOTAL']['jiff'];
-                            chart.series[nr].addPoint([time, val], true, shift);
-                        }
-                    };
-
-                    var nowMilli = getMilliTime();
-                    var spent = nowMilli - lastUpdate;
-                    var sleep = Math.max( 1, 1000 - spent );
-                    lastUpdate = nowMilli;
-                    window.setTimeout( updateChart, sleep );
-                }
-            },
-            error: function() {
+            timeout: 15000,
+            dataType: "json",
+            success: updateCallBack,
+            error: function(req,stat,err) {
                 window.setTimeout( updateChart, 1000 );
             }
         });
     }
 
+    function updateCallBack( data, stat, req )
+    {
+        if ( 'undefined' == typeof data ) {
+            // window.setTimeout( updateChart, 1000 );
+        }
+        else {
+            var nowTimeMilli = (new Date()).getTime();
+            var shift =  ( 50 < chart.series[0].data.length );
+
+            for ( var nr=0; nr < userProcCount; nr++ ) {
+                var user = userProcs[nr]['user'];
+                var proc = userProcs[nr]['proc'];
+                if (   'undefined' != typeof data[user]
+                    && 'undefined' != typeof data[user][proc]
+                    && 'undefined' != typeof data[user][proc]['jiff'] ) {
+                    var val = data[ user ][proc]['jiff'];
+                    chart.series[nr].addPoint([nowTimeMilli, val], true, shift);
+                }
+            };
+            nowTimeMilli = (new Date()).getTime();
+            var spent = nowTimeMilli - lastUpdate;
+            var sleep = Math.max( 1, 1000 - spent );
+            lastUpdate = nowTimeMilli;
+            // TODO: Get this "spent" trick working. Currently we end up with too mutch requests
+            window.setTimeout( updateChart, 1000 );
+        }
+    }
+
     $(document).ready(function() {
         jQuery.ajax({
+            async: false,
             dataType: "json",
             url: 'procstats_json',
             success: initialData,

@@ -22,14 +22,14 @@
 			});
 
 			// schedule a new timeslot to update
-			window.setTimeout(updateRuntimeStats, 10000);
+		    window.setTimeout(updateRuntimeStats, 10000);
 		}
 
 		/**
 		 * Run the timed update to update the UI with new statistics from the backend
 		 */
 		$(document).ready(function(){
-			updateRuntimeStats();
+//			updateRuntimeStats();
 		});
 	</script>
 	<style type="text/css">
