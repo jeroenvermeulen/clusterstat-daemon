@@ -4,3 +4,4 @@
 /BUILDROOT/*
 *~
 /userstats.sqlite
+/logs/*

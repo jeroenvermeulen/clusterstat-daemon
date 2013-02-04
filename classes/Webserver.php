@@ -112,11 +112,23 @@ class Webserver {
         $client = @stream_socket_accept($this->_webserverSocket, $timeoutSeconds, $peer);
         if($client===false) return;
 
+        socket_set_timeout($client,5);
+
         // read header information of the connecting webbrowser
+
+        $startTime = microtime( true );
+
         $requestHeader = '';
         while (!feof($client)) {
+            Log::info('before fgets');
             $requestHeader .= $line = @fgets($client, 1024);
+            Log::info('after fgets');
             if($line==="\r\n" || $line===false) break;
+            if ( 5 < microtime(true) - $startTime) {
+                Log::info("webclient {$peer} timeout when reading request headers");
+                @fclose($client);
+                return;
+            }
         }
 
         // ignore empty requests
@@ -269,6 +281,9 @@ class Webserver {
                 Log::error('error starting webserver: '.$errstr);
                 exit;
             }
+
+            // Timeout for socket operation 5 seconds
+            stream_set_timeout( $this->_webserverSocket, 5 );
 
             Log::info("Webserver started and listening on port {$port}");
         } catch (Exception $e) {

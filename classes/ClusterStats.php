@@ -9,6 +9,8 @@
 
 class ClusterStats {
     private $_startTime;
+    /** @var ProcStats */
+    private $_procStats;
 
     /**
      * Class constructor
@@ -17,6 +19,11 @@ class ClusterStats {
      */
     public function __construct() {
         $this->_startTime = time();
+    }
+
+    public function setProcStats( ProcStats $procStats )
+    {
+        $this->_procStats = $procStats;
     }
 
     /**
@@ -30,6 +37,7 @@ class ClusterStats {
     public function homepage($path, $queryString) {
         $template = new HtmlTemplate('index.tpl');
         $template->setVar('runtimestats', $this->_collectRuntimeStats());
+        $template->setVar('procstats', $this->_procStats->getProcStats($path, $queryString) );
         return $template->parse();
     }
 

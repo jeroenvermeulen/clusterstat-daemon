@@ -18,14 +18,17 @@ jQuery(function () {
 //                         (    ('TOTAL' != proc && 'root' != user)
 //                           || ('TOTAL' == proc && 'root' == user)
 //                         )
-                            'TOTAL' != proc
+//                         'TOTAL' != proc
+                           'TOTAL' == proc
                          && 'undefined' != typeof procStats[ user ][proc]
                          && 'undefined' != typeof procStats[ user ][proc]['counter']
-                         &&  2000 < procStats[user][proc]['counter']
+//                         &&  2000 < procStats[user][proc]['counter']
                        ) {
                         userProcs[userProcNr] = { user: user, proc: proc };
                         var val               = procStats[ user ][proc]['jiff'];
-                        series[userProcNr]    = { name: user+' - '+proc, data: [{ x: nowTimeMilli, y: val }] };
+                        //var name              = user+' - '+proc;
+                        var name              = user;
+                        series[userProcNr]    = { name: name, data: [{ x: nowTimeMilli, y: val }] };
                         userProcNr++;
                     }
                 }
@@ -141,6 +144,9 @@ jQuery(function () {
                     && 'undefined' != typeof data[user][proc]['jiff'] ) {
                     var val = data[ user ][proc]['jiff'];
                     chart.series[nr].addPoint([nowTimeMilli, val], true, shift);
+
+                    jQuery('#'+user+'_jiff').html( data[ user ][proc]['jiff'] );
+                    jQuery('#'+user+'_counter').html( data[ user ][proc]['counter'] );
                 }
             };
             // TODO: Check if needed to get this "spent" trick working.

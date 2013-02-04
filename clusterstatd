@@ -15,12 +15,13 @@ try {
 
     // initialize cluster statistics collection
     $stats = new ClusterStats();
+    $procstats = new ProcStats();
+
+    $stats->setProcStats( $procstats );
+
     $webserver->registerController('/', array($stats, 'homepage'));
     $webserver->registerController('/runtimestats.js', array($stats, 'getRuntimeStats'));
-
-    $procstats = new ProcStats();
-    $webserver->registerController('/procstats', array($procstats, 'getWebPage') );
-    $webserver->registerController('/procstats_json', array($procstats, 'getProcStats'), 'application/json' );
+    $webserver->registerController('/procstats_json', array($procstats, 'getJsonProcStats'), 'application/json' );
 
     // register timers
     $timer = new Timer();

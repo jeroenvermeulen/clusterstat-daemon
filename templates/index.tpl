@@ -94,6 +94,22 @@
 	</div>
 	<div id="contents">
         <div id="container" style="min-width: 400px; height: 300px; margin: 0 auto"></div>
+
+        <table border="1" style="border-collapse: collapse; font-size: 11px;" cellpadding="2">
+            <tr>
+                <th>user</th>
+                <th>jiff/sec</th>
+                <th>counter</th>
+            </tr>
+        {foreach $procstats as $user=>$item}
+            <tr id="templateRow">
+                <td>{$user}</td>
+                <td id="{$user}_jiff" style="text-align: right">-</td>
+                <td id="{$user}_counter" style="text-align: right">-</td>
+            </tr>
+        {/foreach}
+            <table>
+
 	</div>
 </body>
 </html>

@@ -28,89 +28,86 @@ class ProcStats
     }
 
     /**
-     * Renders the web page of the process statistics
-     *
-     * @param String $path The path of the http request
-     * @param String $queryString The querystring of the http request
-     *
-     * @return String Html contents of the homepage
-     */
-    public function getWebPage($path, $queryString) {
-        $template = new HtmlTemplate('procstats.tpl');
-        $template->setVar('procstats', $this->getProcStats($path, $queryString) );
-        return $template->parse();
-    }
-
-    /**
      * Returns a JSON array with process statitics
      *
      * @return array Process statistics.
      */
-    public function getProcStats($path, $queryString)
+    public function getProcStats()
     {
         $result = array();
         if ($this->_statFifoLen <= count($this->_statFifo) )
         {
             $startStats = end( $this->_statFifo );
             $endStats = reset( $this->_statFifo );
-            $users = array_keys( $startStats );
-            foreach ( $users as $user )
+
+            foreach ( $endStats as $uid => &$nil )
             {
+                $user = $this->_uidToUser($uid);
+
                 $result[$user]['TOTAL']['jiff']    = 0;
                 $result[$user]['TOTAL']['counter'] = 0;
-                $procs = array_keys( $startStats[$user] );
-                foreach ( $procs as $proc )
+
+                foreach ( $startStats[$uid] as $proc => &$nil2 )
                 {
-                    if (  !empty($startStats[$user][$proc]['jiff'])
-                       && !empty($endStats[$user][$proc]['jiff'])
+                    if (  !empty($startStats[$uid][$proc]['jiff'])
+                       && !empty($endStats[$uid][$proc]['jiff'])
                        )
                     {
-                        $timeDiff = $endStats[$user][$proc]['time'] - $startStats[$user][$proc]['time'];
-                        $diffJiff = $endStats[$user][$proc]['jiff'] - $startStats[$user][$proc]['jiff'];
+                        $timeDiff = $endStats[$uid][$proc]['time'] - $startStats[$uid][$proc]['time'];
+                        $diffJiff = $endStats[$uid][$proc]['jiff'] - $startStats[$uid][$proc]['jiff'];
                         $diffJiff = round( $diffJiff / $timeDiff );
                         $diffJiff = max( 0, $diffJiff );
                         $result[$user][$proc]['jiff']    = max( 0, $diffJiff );
-                        $result[$user][$proc]['counter'] = $endStats[$user][$proc]['jiff'];
+                        $result[$user][$proc]['counter'] = $endStats[$uid][$proc]['counter'];
                         $result[$user]['TOTAL']['jiff']    += max( 0, $diffJiff );
-                        $result[$user]['TOTAL']['counter'] += $endStats[$user][$proc]['jiff'];
+                        $result[$user]['TOTAL']['counter'] += $endStats[$uid][$proc]['counter'];
                     }
                 }
+                unset( $nil2 );
             }
+            unset( $nil );
         }
-        return $this->_jsonIndent( json_encode($result) );
-        //return json_encode($result);
+        ksort( $result );
+        return $result;
+    }
+
+    public function getJsonProcStats($path, $queryString)
+    {
+        //return $this->_jsonIndent( json_encode($result) );
+        return json_encode($this->getProcStats());
     }
 
     public function collectProcStats()
     {
+        //echo '.';
+
         $this->_collectProcStats();
         //$this->_debugTree();
 
         $userProcStats = $this->_getUserProcStats();
 
-// TODO: Fix this. Currently it produces nonsense when after stopping a Siege.
-//        $dbData = $this->_getFromDatabase();
-//        $users = array_keys( $userProcStats );
-//        foreach ( $users as $user ) {
-//            $names = array_keys( $userProcStats[$user] );
-//            foreach ( $names as $name ) {
-//                if ( !empty( $dbData[$user][$name] ) ) {
-//                    // Previous data found in database
-//                    if ( $dbData[$user][$name]['lastvalue'] > $userProcStats[$user][$name]['jiff'] ) {
-//                        $dbData[$user][$name]['offset'] += $dbData[$user][$name]['lastvalue'];
-//                    }
-//                }
-//                else {
-//                    // No entry found in database, create initial data.
-//                    $dbData[$user][$name]['linuxuser'] = $user;
-//                    $dbData[$user][$name]['process']   = $name;
-//                    $dbData[$user][$name]['offset']    = 0;
-//                }
-//                $dbData[$user][$name]['lastvalue']   = $userProcStats[$user][$name]['jiff'] ;
-//                $userProcStats[$user][$name]['jiff'] += $dbData[$user][$name]['offset'];
-//            }
-//        }
-//        $this->_writeToDatabase( $dbData );
+        $dbData = $this->_getFromDatabase();
+        foreach ( $userProcStats as $user => &$nil ) {
+            foreach ( $userProcStats[$user] as $name => &$nil2 ) {
+                if ( !empty( $dbData[$user][$name] ) ) {
+                    $delta = $userProcStats[$user][$name]['jiff'] - $dbData[$user][$name]['lastvalue'];
+                    $delta = max( 0, $delta );
+                    // Previous data found in database
+                    $dbData[$user][$name]['counter'] += $delta;
+                }
+                else {
+                    // No entry found in database, create initial data.
+                    $dbData[$user][$name]['linuxuser'] = $user;
+                    $dbData[$user][$name]['process']   = $name;
+                    $dbData[$user][$name]['counter']   = $userProcStats[$user][$name]['jiff'];
+                }
+                $dbData[$user][$name]['lastvalue']      = $userProcStats[$user][$name]['jiff'] ;
+                $userProcStats[$user][$name]['counter'] = $dbData[$user][$name]['counter'];
+            }
+            unset($nil2);
+        }
+        unset( $nil );
+        $this->_writeToDatabase( $dbData );
 
         if ($this->_statFifoLen <= count($this->_statFifo) )
         {
@@ -158,7 +155,7 @@ class ProcStats
     {
         $result = array();
         $database = $this->_getDatabase();
-        $rowset   = $database->query('SELECT linuxuser,process,lastvalue,offset FROM jiffy');
+        $rowset   = $database->query('SELECT linuxuser,process,lastvalue,counter FROM jiffy');
         foreach ($rowset as $row) {
             $result[ $row['linuxuser'] ][ $row['process'] ] = $row;
         }
@@ -174,19 +171,19 @@ class ProcStats
     private function _writeToDatabase( $data )
     {
         $database = $this->_getDatabase();
-        $sql = 'REPLACE INTO jiffy (linuxuser,process,lastvalue,offset) VALUES (:linuxuser,:process,:lastvalue,:offset)';
+        $sql = 'REPLACE INTO jiffy (linuxuser,process,lastvalue,counter) VALUES (:linuxuser,:process,:lastvalue,:counter)';
         $stmt = $database->prepare($sql);
 
         $linuxuser   = '';
         $process     = '';
         $lastvalue   = '';
-        $offset      = '';
+        $counter      = '';
 
         // Bind parameters to statement variables
         $stmt->bindParam( ':linuxuser',   $linuxuser );
         $stmt->bindParam( ':process',     $process );
         $stmt->bindParam( ':lastvalue',   $lastvalue );
-        $stmt->bindParam( ':offset',      $offset );
+        $stmt->bindParam( ':counter',     $counter );
 
         // Loop through all messages and execute prepared insert statement
         foreach ($data as $userdata) {
@@ -195,7 +192,7 @@ class ProcStats
                 $linuxuser   = $row['linuxuser'];
                 $process     = $row['process'];
                 $lastvalue   = $row['lastvalue'];
-                $offset      = $row['offset'];
+                $counter     = $row['counter'];
 
                 // Execute statement
                 $stmt->execute();
@@ -238,30 +235,23 @@ class ProcStats
 
         foreach ( $this->_statData as $aProcInfo )
         {
-            $user     = $aProcInfo['user'];
+            $uid      = $aProcInfo['uid'];
             $procName = $aProcInfo['name'];
 
-            if ( !isset( $result[$user][$procName] ) )
+            if ( !isset( $result[$uid][$procName] ) )
             {
-                $result[$user][$procName]['procs'] = 0;
-                $result[$user][$procName]['jiff'] = 0;
+                $result[$uid][$procName]['procs'] = 0;
+                $result[$uid][$procName]['jiff'] = 0;
             }
 
-            $result[$user][$procName]['procs']++;
+            $result[$uid][$procName]['procs']++;
             $iJiff = $aProcInfo['thisJiff'];
             // TODO: Do we want to take in account jiffies from dead children?
             //       Currently it acts strange after ending a Siege.
             //$iJiff += $aProcInfo['deadChildJiff'];
 
-            $result[$user][$procName]['jiff'] += $iJiff;
-            $result[$user][$procName]['time'] = $aProcInfo['time'];
-        }
-
-        ksort( $result );
-        $users = array_keys( $result );
-        foreach ( $users as $user )
-        {
-            ksort( $result[$user] );
+            $result[$uid][$procName]['jiff'] += $iJiff;
+            $result[$uid][$procName]['time'] = $aProcInfo['time'];
         }
 
         return $result;
@@ -277,37 +267,41 @@ class ProcStats
         $procStatFile =   $this->_procPath.'/'.$pid.'/stat';
         $procStatusFile = $this->_procPath.'/'.$pid.'/status';
 
-        if (  is_readable($procStatFile)
-           && is_readable($procStatusFile)
-           )
-        {
-            $lines        = file( $procStatFile );
-            $statLine     = reset( $lines );
-            $statFields   = preg_split( '|\s+|', $statLine );
-            $statusFields = array();
+        try {
+            //$lines        = file( $procStatFile );
+            //$statLine     = reset( $lines );
 
-            $lines = file( $procStatusFile );
-            foreach ( $lines as $line )
+            $fh = fopen($procStatFile, 'r');
+            $statLine = fread($fh, 1024);
+            fclose($fh);
+
+            $statFields   = explode( ' ', $statLine );
+            $uid          = null;
+
+            // $statusdata = file_get_contents( $procStatusFile );
+            $fh = fopen($procStatusFile, 'r');
+            $statusdata = fread($fh, 4096);
+            fclose($fh);
+
+            $match = array();
+            if ( preg_match( '/Uid:\s*\d+\s*(\d+)/', $statusdata, $match ) )
             {
-                $match = array();
-                if ( preg_match( '/^(\w+):\s*(.+)$/', $line, $match ) )
-                {
-                    // Info about the '/proc/PID/status' fields:
-                    // http://www.kernel.org/doc/man-pages/online/pages/man5/proc.5.html
-                    // search for "/proc/[pid]/status"
-                    $statusFields[ $match[1] ] = $match[2];
-                }
+                // Info about the '/proc/PID/status' fields:
+                // http://www.kernel.org/doc/man-pages/online/pages/man5/proc.5.html
+                // search for "/proc/[pid]/status"
+                $uid = $match[1];
             }
-
-            $uids = preg_split( '/\s+/', $statusFields['Uid'] );
-            $uid  = ( empty($uids[1]) ) ? fileowner($procStatFile) : $uids[1];
+            if ( null === $uid )
+            {
+                $uid  = fileowner($procStatFile);
+            }
 
             // For info about the '/proc/PID/stat' fields:
             // http://www.kernel.org/doc/man-pages/online/pages/man5/proc.5.html
             // search for "/proc/[pid]/stat"
 
             $name      = $statFields[1];
-            $name      = trim( $name, '()-' );
+            $name      = trim( $name, '()-0123456789/' );
             $name      = preg_replace('/\/\d+$/','',$name);
             $parentPid = $statFields[3];
 
@@ -322,7 +316,6 @@ class ProcStats
             }
 
             $this->_statData[$pid]['uid']  = $uid;
-            $this->_statData[$pid]['user'] = $this->_uidToUser($uid);
 
             $this->_statData[$pid]['thisJiff'] = 0;
             $this->_statData[$pid]['thisJiff'] += $statFields[13]; // utime = user mode
@@ -334,6 +327,11 @@ class ProcStats
 
             $this->_statData[$pid]['time'] = microtime(true);
         }
+        catch ( Exception $e )
+        {
+            // For performance reasons we do not check if the files we read do
+            // exist. Then this exception is hit.
+        }
     }
 
     /**
@@ -344,7 +342,7 @@ class ProcStats
      */
     function _uidToUser( $uid )
     {
-        if ( empty($this->_uidcache[$uid]) ) {
+        if ( !isset($this->_uidcache[$uid]) ) {
             $aUserInfo = posix_getpwuid($uid);
             if ( empty($aUserInfo['name']) ) {
                 $this->_uidcache[$uid] =  '['.$uid.']';
