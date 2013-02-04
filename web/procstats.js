@@ -15,9 +15,10 @@ jQuery(function () {
                 for ( var proc in procStats[ user ] )
                 {
                     if (
-                         (    ('TOTAL' != proc && 'root' != user)
-                           || ('TOTAL' == proc && 'root' == user)
-                         )
+//                         (    ('TOTAL' != proc && 'root' != user)
+//                           || ('TOTAL' == proc && 'root' == user)
+//                         )
+                            'TOTAL' != proc
                          && 'undefined' != typeof procStats[ user ][proc]
                          && 'undefined' != typeof procStats[ user ][proc]['counter']
                          &&  2000 < procStats[user][proc]['counter']
@@ -42,7 +43,7 @@ jQuery(function () {
             chart: {
                 renderTo: 'container',
                 type: 'spline',
-                marginRight: 230,
+                marginRight: 220,
                 events: {
                     load: function() {
                         lastUpdate = nowTimeMilli;
@@ -80,7 +81,7 @@ jQuery(function () {
                 align: 'right',
                 verticalAlign: 'top',
                 x: -10,
-                y: 100,
+                y: -10,
                 borderWidth: 0
             },
             exporting: {
@@ -88,10 +89,10 @@ jQuery(function () {
             },
             plotOptions: {
                 spline: {
-                    lineWidth: 3,
+                    lineWidth: 2,
                     states: {
                         hover: {
-                            lineWidth: 4
+                            lineWidth: 3
                         }
                     },
                     marker: {
@@ -126,7 +127,7 @@ jQuery(function () {
     function updateCallBack( data, stat, req )
     {
         if ( 'undefined' == typeof data ) {
-            // window.setTimeout( updateChart, 1000 );
+            window.setTimeout( updateChart, 1000 );
         }
         else {
             var nowTimeMilli = (new Date()).getTime();
@@ -142,11 +143,12 @@ jQuery(function () {
                     chart.series[nr].addPoint([nowTimeMilli, val], true, shift);
                 }
             };
-            nowTimeMilli = (new Date()).getTime();
-            var spent = nowTimeMilli - lastUpdate;
-            var sleep = Math.max( 1, 1000 - spent );
-            lastUpdate = nowTimeMilli;
-            // TODO: Get this "spent" trick working. Currently we end up with too mutch requests
+            // TODO: Check if needed to get this "spent" trick working.
+            //       Currently if enabled we end up with too mutch updates
+//            var spent = nowTimeMilli - lastUpdate;
+//            var sleep = Math.max( 1, 1000 - spent );
+//            lastUpdate = nowTimeMilli;
+//            window.setTimeout( updateChart, spent );
             window.setTimeout( updateChart, 1000 );
         }
     }
