@@ -4,20 +4,19 @@ class ProcStats
 {
     protected $_procPath   = '/proc';
     protected $_statData   = array();
-    protected $_totalData  = array();
     protected $_database   = null;
     protected $_uidcache   = array();
     protected $_sqliteFile = 'userstats.sqlite';
     protected $_statFifo   = array();
     protected $_statFifoLen = 3;
+    protected $_workDir    = null;
 
     /**
      * Constructor - initialize some data.
      */
     public function __construct()
     {
-        $this->_totalData['procs'] = 0;
-        $this->_totalData['jiff'] = 0;
+        $this->_workDir = dirname( dirname(__FILE__) );
     }
 
     /**
@@ -52,21 +51,23 @@ class ProcStats
         $result = array();
         if ($this->_statFifoLen <= count($this->_statFifo) )
         {
-            $startStats = end($this->_statFifo);
-            $endStats = reset($this->_statFifo);
-            $users = array_keys($startStats);
+            $startStats = end( $this->_statFifo );
+            $endStats = reset( $this->_statFifo );
+            $users = array_keys( $startStats );
             foreach ( $users as $user )
             {
                 $result[$user]['TOTAL']['jiff']    = 0;
                 $result[$user]['TOTAL']['counter'] = 0;
-                $procs = array_keys($startStats[$user]);
+                $procs = array_keys( $startStats[$user] );
                 foreach ( $procs as $proc )
                 {
                     if (  !empty($startStats[$user][$proc]['jiff'])
                        && !empty($endStats[$user][$proc]['jiff'])
-                    )
+                       )
                     {
+                        $timeDiff = $endStats[$user][$proc]['time'] - $startStats[$user][$proc]['time'];
                         $diffJiff = $endStats[$user][$proc]['jiff'] - $startStats[$user][$proc]['jiff'];
+                        $diffJiff = round( $diffJiff / $timeDiff );
                         $diffJiff = max( 0, $diffJiff );
                         $result[$user][$proc]['jiff']    = max( 0, $diffJiff );
                         $result[$user][$proc]['counter'] = $endStats[$user][$proc]['jiff'];
@@ -76,8 +77,8 @@ class ProcStats
                 }
             }
         }
-        //return $this->_jsonIndent( json_encode($result) );
-        return json_encode($result);
+        return $this->_jsonIndent( json_encode($result) );
+        //return json_encode($result);
     }
 
     public function collectProcStats()
@@ -87,7 +88,6 @@ class ProcStats
 
         $userProcStats = $this->_getUserProcStats();
 
-        $userProcStats['TOTAL'][''] = $this->_totalData;
         $dbData = $this->_getFromDatabase();
         $users = array_keys( $userProcStats );
         foreach ( $users as $user ) {
@@ -123,13 +123,14 @@ class ProcStats
      */
     private function _getDatabase()
     {
+        $sqliteFile   = $this->_workDir . '/' . $this->_sqliteFile;
+        $templateFile = $this->_workDir.'/templates/'.$this->_sqliteFile;
         if ( empty($this->_database) ) {
-            if ( !file_exists($this->_sqliteFile) ) {
-                $templateFile = 'templates/'.$this->_sqliteFile;
+            if ( !file_exists($sqliteFile) ) {
                 if ( file_exists($templateFile) ) {
-                    $copyOK = copy( $templateFile, $this->_sqliteFile );
+                    $copyOK = copy( $templateFile, $sqliteFile );
                     if ( !$copyOK ) {
-                        throw new Exception('Copy of SQLite file from template to "'.$this->_sqliteFile.'" failed.');
+                        throw new Exception('Copy of SQLite file from template "'.$templateFile.'" to "'.$sqliteFile.'" failed.');
                     }
                 }
                 else {
@@ -137,7 +138,7 @@ class ProcStats
                 }
             }
             // Create (connect to) SQLite database in file
-            $this->_database = new PDO('sqlite:'.$this->_sqliteFile);
+            $this->_database = new PDO('sqlite:'.$sqliteFile);
             // Set errormode to exceptions
             $this->_database->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         }
@@ -214,12 +215,15 @@ class ProcStats
         }
         else
         {
+            $this->_statData = array();
+
             while (false !== ($entry = readdir($dirHandle))) {
                 if ( is_numeric($entry) ) {
                     $this->_getProcInfo( $entry );
                 }
             }
         }
+        closedir( $dirHandle );
     }
 
     /**
@@ -242,13 +246,14 @@ class ProcStats
 
             $result[$user][$procName]['procs']++;
             $iJiff = $aProcInfo['thisJiff'];
-            $iJiff += $aProcInfo['deadChildJiff'];
+            //$iJiff += $aProcInfo['deadChildJiff'];
 
             $result[$user][$procName]['jiff'] += $iJiff;
+            $result[$user][$procName]['time'] = $aProcInfo['time'];
         }
 
         ksort( $result );
-        $users = array_keys($result);
+        $users = array_keys( $result );
         foreach ( $users as $user )
         {
             ksort( $result[$user] );
@@ -322,9 +327,7 @@ class ProcStats
             $this->_statData[$pid]['deadChildJiff'] += $statFields[15]; // cutime = ended children user mode
             $this->_statData[$pid]['deadChildJiff'] += $statFields[16]; // cstime = ended children kernel mode
 
-            $this->_totalData['procs']++;
-            $this->_totalData['jiff'] += $this->_statData[$pid]['thisJiff'];
-            $this->_totalData['jiff'] += $this->_statData[$pid]['deadChildJiff'];
+            $this->_statData[$pid]['time'] = microtime(true);
         }
     }
 

@@ -4,7 +4,10 @@
 	<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
 	<title>ClusterStatDaemon</title>
 	<script src="jquery-1.8.2.min.js"></script>
-	<script type="text/javascript">
+    <script type="text/javascript" src="highcharts.js"></script>
+    <script type="text/javascript" src="highcharts_exporting.js"></script>
+    <script type="text/javascript" src="procstats.js"></script>
+    <script type="text/javascript">
 		$.ajaxSetup({ cache: false });
 		/**
 		 * Performs a JSON data update and refreshes the UI inline with runtime statistics
@@ -19,7 +22,7 @@
 			});
 
 			// schedule a new timeslot to update
-			window.setTimeout(updateRuntimeStats, 1000);
+			window.setTimeout(updateRuntimeStats, 10000);
 		}
 
 		/**
@@ -90,10 +93,7 @@
 		Server Load: <span id="main_load">{$runtimestats.load}</span>
 	</div>
 	<div id="contents">
-        <br />
-        <ul>
-            <li><a href="procstats">Process Statistics</a></li>
-        </ul>
+        <div id="container" style="min-width: 400px; height: 300px; margin: 0 auto"></div>
 	</div>
 </body>
 </html>
