@@ -28,6 +28,7 @@ try {
     $timer->register(array('Log','rotate'), 30);
 
     $timer->register(array($procstats,'collectProcStats'), 0.5, true);
+    $timer->register(array($procstats,'writeDatabase'), 10, true);
 
     // enter main application loop
     for(;;) {

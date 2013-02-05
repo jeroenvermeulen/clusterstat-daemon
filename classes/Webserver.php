@@ -120,9 +120,7 @@ class Webserver {
 
         $requestHeader = '';
         while (!feof($client)) {
-            Log::info('before fgets');
             $requestHeader .= $line = @fgets($client, 1024);
-            Log::info('after fgets');
             if($line==="\r\n" || $line===false) break;
             if ( 5 < microtime(true) - $startTime) {
                 Log::info("webclient {$peer} timeout when reading request headers");

@@ -10,6 +10,7 @@ class ProcStats
     protected $_statFifo   = array();
     protected $_statFifoLen = 3;
     protected $_workDir    = null;
+    protected $_dbData     = null;
 
     /**
      * Constructor - initialize some data.
@@ -17,6 +18,7 @@ class ProcStats
     public function __construct()
     {
         $this->_workDir = dirname( dirname(__FILE__) );
+        $this->_dbData = $this->_getFromDatabase();
     }
 
     /**
@@ -79,41 +81,45 @@ class ProcStats
 
     public function collectProcStats()
     {
-        //echo '.';
-
         $this->_collectProcStats();
         //$this->_debugTree();
 
         $userProcStats = $this->_getUserProcStats();
 
-        $dbData = $this->_getFromDatabase();
         foreach ( $userProcStats as $user => &$nil ) {
             foreach ( $userProcStats[$user] as $name => &$nil2 ) {
-                if ( !empty( $dbData[$user][$name] ) ) {
-                    $delta = $userProcStats[$user][$name]['jiff'] - $dbData[$user][$name]['lastvalue'];
+                if ( !empty( $this->_dbData[$user][$name] ) ) {
+                    $delta = $userProcStats[$user][$name]['jiff'] - $this->_dbData[$user][$name]['lastvalue'];
                     $delta = max( 0, $delta );
                     // Previous data found in database
-                    $dbData[$user][$name]['counter'] += $delta;
+                    $this->_dbData[$user][$name]['counter'] += $delta;
                 }
                 else {
                     // No entry found in database, create initial data.
-                    $dbData[$user][$name]['linuxuser'] = $user;
-                    $dbData[$user][$name]['process']   = $name;
-                    $dbData[$user][$name]['counter']   = $userProcStats[$user][$name]['jiff'];
+                    $this->_dbData[$user][$name]['linuxuser'] = $user;
+                    $this->_dbData[$user][$name]['process']   = $name;
+                    $this->_dbData[$user][$name]['counter']   = $userProcStats[$user][$name]['jiff'];
                 }
-                $dbData[$user][$name]['lastvalue']      = $userProcStats[$user][$name]['jiff'] ;
-                $userProcStats[$user][$name]['counter'] = $dbData[$user][$name]['counter'];
+                $this->_dbData[$user][$name]['lastvalue']      = $userProcStats[$user][$name]['jiff'] ;
+                $userProcStats[$user][$name]['counter'] = $this->_dbData[$user][$name]['counter'];
             }
             unset($nil2);
         }
         unset( $nil );
-        $this->_writeToDatabase( $dbData );
 
         if ($this->_statFifoLen <= count($this->_statFifo) )
         {
             array_pop($this->_statFifo);
         }
         array_unshift($this->_statFifo,$userProcStats);
+    }
+
+    /**
+     * To be called by timer
+     */
+    function writeDatabase()
+    {
+        $this->_writeToDatabase( $this->_dbData );
     }
 
     /**
