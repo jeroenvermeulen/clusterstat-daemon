@@ -42,30 +42,33 @@ class ProcStats
             $startStats = end( $this->_statFifo );
             $endStats = reset( $this->_statFifo );
 
-            foreach ( $endStats as $uid => &$nil )
+            if ( is_array($startStats) && is_array($endStats) )
             {
-                $user = $this->_uidToUser($uid);
-
-                $result[$user]['TOTAL']['jiff']    = 0;
-                $result[$user]['TOTAL']['counter'] = 0;
-
-                foreach ( $startStats[$uid] as $proc => &$nil2 )
+                foreach ( $endStats as $uid => &$nil )
                 {
-                    if (  !empty($startStats[$uid][$proc]['jiff'])
-                       && !empty($endStats[$uid][$proc]['jiff'])
-                       )
+                    $user = $this->_uidToUser($uid);
+
+                    $result[$user]['TOTAL']['jiff']    = 0;
+                    $result[$user]['TOTAL']['counter'] = 0;
+
+                    foreach ( $startStats[$uid] as $proc => &$nil2 )
                     {
-                        $timeDiff = $endStats[$uid][$proc]['time'] - $startStats[$uid][$proc]['time'];
-                        $diffJiff = $endStats[$uid][$proc]['jiff'] - $startStats[$uid][$proc]['jiff'];
-                        $diffJiff = round( $diffJiff / $timeDiff );
-                        $diffJiff = max( 0, $diffJiff );
-                        $result[$user][$proc]['jiff']    = max( 0, $diffJiff );
-                        $result[$user][$proc]['counter'] = $endStats[$uid][$proc]['counter'];
-                        $result[$user]['TOTAL']['jiff']    += max( 0, $diffJiff );
-                        $result[$user]['TOTAL']['counter'] += $endStats[$uid][$proc]['counter'];
+                        if (  !empty($startStats[$uid][$proc]['jiff'])
+                           && !empty($endStats[$uid][$proc]['jiff'])
+                           )
+                        {
+                            $timeDiff = $endStats[$uid][$proc]['time'] - $startStats[$uid][$proc]['time'];
+                            $diffJiff = $endStats[$uid][$proc]['jiff'] - $startStats[$uid][$proc]['jiff'];
+                            $diffJiff = round( $diffJiff / $timeDiff );
+                            $diffJiff = max( 0, $diffJiff );
+                            $result[$user][$proc]['jiff']    = max( 0, $diffJiff );
+                            $result[$user][$proc]['counter'] = $endStats[$uid][$proc]['counter'];
+                            $result[$user]['TOTAL']['jiff']    += max( 0, $diffJiff );
+                            $result[$user]['TOTAL']['counter'] += $endStats[$uid][$proc]['counter'];
+                        }
                     }
+                    unset( $nil2 );
                 }
-                unset( $nil2 );
             }
             unset( $nil );
         }
@@ -176,9 +179,13 @@ class ProcStats
      */
     private function _writeToDatabase( $data )
     {
-        $database = $this->_getDatabase();
-        $sql = 'REPLACE INTO jiffy (linuxuser,process,lastvalue,counter) VALUES (:linuxuser,:process,:lastvalue,:counter)';
-        $stmt = $database->prepare($sql);
+        $database    = $this->_getDatabase();
+        $database->beginTransaction();
+
+        $updateSQL   = 'UPDATE jiffy SET lastvalue=:lastvalue, counter=:counter WHERE linuxuser=:linuxuser AND process=:process';
+        $updateStmt  = $database->prepare($updateSQL);
+        $insertSQL   = 'INSERT INTO jiffy (linuxuser,process,lastvalue,counter) VALUES (:linuxuser,:process,:lastvalue,:counter)';
+        $insertStmt  = $database->prepare($insertSQL);
 
         $linuxuser   = '';
         $process     = '';
@@ -186,10 +193,15 @@ class ProcStats
         $counter      = '';
 
         // Bind parameters to statement variables
-        $stmt->bindParam( ':linuxuser',   $linuxuser );
-        $stmt->bindParam( ':process',     $process );
-        $stmt->bindParam( ':lastvalue',   $lastvalue );
-        $stmt->bindParam( ':counter',     $counter );
+        $updateStmt->bindParam( ':linuxuser',   $linuxuser );
+        $updateStmt->bindParam( ':process',     $process );
+        $updateStmt->bindParam( ':lastvalue',   $lastvalue );
+        $updateStmt->bindParam( ':counter',     $counter );
+
+        $insertStmt->bindParam( ':linuxuser',   $linuxuser );
+        $insertStmt->bindParam( ':process',     $process );
+        $insertStmt->bindParam( ':lastvalue',   $lastvalue );
+        $insertStmt->bindParam( ':counter',     $counter );
 
         // Loop through all messages and execute prepared insert statement
         foreach ($data as $userdata) {
@@ -201,9 +213,19 @@ class ProcStats
                 $counter     = $row['counter'];
 
                 // Execute statement
-                $stmt->execute();
+                $updateStmt->execute();
+                if ( 0 == $updateStmt->rowCount() )
+                {
+                    $insertStmt->execute();
+                    if ( 0 == $updateStmt->rowCount() )
+                    {
+                        Log::error(__CLASS__.'->'.__FUNCTION__.': Insert of record into SQLite database failed');
+                    }
+                }
             }
         }
+
+        $database->commit();
     }
 
     /**
