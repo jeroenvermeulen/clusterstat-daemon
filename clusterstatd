@@ -28,7 +28,7 @@ try {
     $timer->register(array('Log','rotate'), 30);
 
     $timer->register(array($procstats,'collectProcStats'), 0.5, true);
-    $timer->register(array($procstats,'writeDatabase'), 10, true);
+    $timer->register(array($procstats,'writeDatabase'), 60, true);
 
     // enter main application loop
     for(;;) {
@@ -39,6 +39,6 @@ try {
         pcntl_signal_dispatch();
     }
 } catch(Exception $e) {
-    Log::error('Fatal error: '.$e->getMessage());
+    Log::error('Fatal '.get_class($e).': '.$e->getMessage());
     exit($e->getCode());
 }

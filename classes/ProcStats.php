@@ -217,7 +217,7 @@ class ProcStats
                 if ( 0 == $updateStmt->rowCount() )
                 {
                     $insertStmt->execute();
-                    if ( 0 == $updateStmt->rowCount() )
+                    if ( 0 == $insertStmt->rowCount() )
                     {
                         Log::error(__CLASS__.'->'.__FUNCTION__.': Insert of record into SQLite database failed');
                     }
