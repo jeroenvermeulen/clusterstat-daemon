@@ -82,6 +82,42 @@ class ProcStats
         return json_encode($this->getProcStats());
     }
 
+    public function getCactiProcStats($path, $queryString)
+    {
+        $result = '';
+        $stats = $this->getProcStats();
+        $users = array_keys($stats);
+        $allTotal = 0;
+        foreach ( $users as $user )
+        {
+            $result .= sprintf( '%s:%d ', $user, $stats[$user]['TOTAL']['counter'] );
+            $allTotal += $stats[$user]['TOTAL']['counter'];
+        }
+        $result .= sprintf( '%s:%d ', 'TOTAL', $allTotal );
+        unset($stats);
+        unset($users);
+        return $result;
+    }
+
+    public function getNagiosProcStats($path, $queryString)
+    {
+        $result = '';
+        $stats = $this->getProcStats();
+        $users = array_keys($stats);
+        $result .= 'OK | ';
+        $allTotal = 0;
+        foreach ( $users as $user )
+        {
+            $result .= sprintf( '%s=%dc ', $user, $stats[$user]['TOTAL']['counter'] );
+            $allTotal += $stats[$user]['TOTAL']['counter'];
+        }
+        $result .= sprintf( '%s=%dc ', 'TOTAL', $allTotal );
+        unset($stats);
+        unset($users);
+        return $result;
+    }
+
+
     public function collectProcStats()
     {
         $this->_collectProcStats();
