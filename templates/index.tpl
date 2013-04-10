@@ -22,7 +22,7 @@
 			});
 
 			// schedule a new timeslot to update
-		    window.setTimeout(updateRuntimeStats, 1000);
+		    window.setTimeout(updateRuntimeStats, 2000);
 		}
 
 		/**

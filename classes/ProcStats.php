@@ -117,6 +117,38 @@ class ProcStats
         return $result;
     }
 
+    public function getProcStatsDetailHtml($path, $queryString)
+    {
+        $result = '';
+        $stats = $this->getProcStats();
+        $result .= "<table border=1>\n";
+        $users = array_keys($stats);
+        $allTotal = 0;
+        foreach ( $users as $user )
+        {
+            $procs = array_keys( $stats[$user] );
+            foreach ( $procs as $proc )
+            {
+               $result .= '<tr>';
+               $result .= sprintf( "<td>%s</td>\n", $user );
+               $result .= sprintf( "<td>%s</td>\n", $proc );
+               $result .= sprintf( "<td>%d</td>\n", $stats[$user][$proc]['counter'] );
+               $result .= '</tr>';
+            }
+            $allTotal += $stats[$user]['TOTAL']['counter'];
+        }
+
+        $result .= '<tr>';
+        $result .= "<td>ALL</td>\n";
+        $result .= "<td>TOTAL</td>\n";
+        $result .= sprintf( "<td>%d</td>\n", $stats[$user]['TOTAL']['counter'] );
+        $result .= '</tr>';
+
+        $result .= "</table>\n";
+        unset($stats);
+        unset($users);
+        return $result;
+    }
 
     public function collectProcStats()
     {

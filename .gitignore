@@ -5,3 +5,4 @@
 *~
 /userstats.sqlite
 /logs/*
+/includes/config.php

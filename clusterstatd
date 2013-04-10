@@ -24,6 +24,7 @@ try {
     $webserver->registerController('/procstats_json', array($procstats, 'getJsonProcStats'), 'application/json' );
     $webserver->registerController('/procstats_cacti', array($procstats, 'getCactiProcStats'), 'text/plain' );
     $webserver->registerController('/procstats_nagios', array($procstats, 'getNagiosProcStats'), 'text/plain' );
+    $webserver->registerController('/procstats_detail_html', array($procstats, 'getProcStatsDetailHtml'), 'text/html' );
 
     // register timers
     $timer = new Timer();
