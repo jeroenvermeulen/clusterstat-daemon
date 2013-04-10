@@ -111,5 +111,6 @@
             <table>
 
 	</div>
+    <p><br /><a href="/procstats_detail_html" target="_blank">Details about processes</a></p>
 </body>
 </html>

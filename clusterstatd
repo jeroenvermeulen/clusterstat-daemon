@@ -30,8 +30,8 @@ try {
     $timer = new Timer();
     $timer->register(array('Log','rotate'), 30);
 
-    $timer->register(array($procstats,'collectProcStats'), 0.5, true);
-    $timer->register(array($procstats,'writeDatabase'), 60, true);
+    $timer->register(array($procstats,'collectProcStats'), 1, true);
+    $timer->register(array($procstats,'writeDatabase'), 300, false);
 
     // enter main application loop
     for(;;) {

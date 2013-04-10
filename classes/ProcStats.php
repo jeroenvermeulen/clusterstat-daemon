@@ -119,32 +119,82 @@ class ProcStats
 
     public function getProcStatsDetailHtml($path, $queryString)
     {
-        $result = '';
-        $stats = $this->getProcStats();
-        $result .= "<table border=1>\n";
-        $users = array_keys($stats);
-        $allTotal = 0;
+        $result       = '';
+        $stats        = $this->getProcStats();
+        $result      .= '<table border="1" cellpadding="2" style="border-collapse:collapse; border-bottom:2px solid black;">'."\n";
+        $result      .= '<tr>';
+        $result      .= '<th>user<br />process</th>';
+        $result      .= '<th colspan=2>current<br />jiff / sec</th>';
+        $result      .= '<th colspan=2>total<br />counter</th>';
+        $result      .= '</tr>'."\n";
+        $counterTotal = 0;
+        $jiffTotal    = 0;
+        uasort( $stats, array($this,'_userCmp') );
+        $users        = array_keys($stats);
         foreach ( $users as $user )
         {
-            $procs = array_keys( $stats[$user] );
+            $counterTotal += $stats[$user]['TOTAL']['counter'];
+            $jiffTotal    += $stats[$user]['TOTAL']['jiff'];
+        }
+        $stats['TOTAL']['TOTAL']['counter'] = $counterTotal;
+        $stats['TOTAL']['TOTAL']['jiff']    = $jiffTotal;
+        $counterTotal = empty($counterTotal) ? 1 : $counterTotal;
+        $jiffTotal    = empty($jiffTotal)    ? 1 : $jiffTotal;
+        array_unshift( $users, 'TOTAL' );
+        foreach ( $users as $user )
+        {
+            $userStats    = $stats[$user];
+            unset( $userStats['TOTAL'] );
+            uasort( $userStats, array($this,'_userProcCmp') );
+            $procs = array_keys( $userStats );
+            array_unshift($procs, 'TOTAL');
             foreach ( $procs as $proc )
             {
-               $result .= '<tr>';
-               $result .= sprintf( "<td>%s</td>\n", $user );
-               $result .= sprintf( "<td>%s</td>\n", $proc );
-               $result .= sprintf( "<td>%d</td>\n", $stats[$user][$proc]['counter'] );
-               $result .= '</tr>';
+                if ( !empty($stats[$user]['TOTAL']['counter']) )
+                {
+                    $counter      = $stats[$user][$proc]['counter'];
+                    $counterPerc  = $counter * 100 / $counterTotal;
+                    $jiff         = $stats[$user][$proc]['jiff'];
+                    $jiffPerc     = $jiff * 100 / $jiffTotal;
+                    $style        = '';
+                    $name         = $proc;
+                    if ( 'TOTAL' == $user )
+                    {
+                        $style    = 'background-color:#74B4CA; border-top:2px solid black;';
+                    }
+                    elseif ( 'TOTAL' == $proc )
+                    {
+                        $style    = 'background-color:#C8DAE6; border-top:2px solid black;';
+                        $name     = $user;
+                    }
+                    $result      .= sprintf( '<tr style="%s">', $style);
+                    $result      .= sprintf( '<td>%s</td>', $name );
+                    if ( empty($jiff) )
+                    {
+                        $result      .= '<td>&nbsp;</td>';
+                        $result      .= '<td>&nbsp;</td>';
+                    }
+                    else
+                    {
+                        $result      .= sprintf( '<td align="right">%d</td>', $jiff );
+                        $result      .= sprintf( '<td align="right">%.02f%%</td>', $jiffPerc );
+                    }
+                    if ( empty($counter) )
+                    {
+                        $result      .= '<td>&nbsp;</td>';
+                        $result      .= '<td>&nbsp;</td>';
+                    }
+                    else
+                    {
+                        $result      .= sprintf( '<td align="right">%d</td>', $counter );
+                        $result      .= sprintf( '<td align="right">%.02f%%</td>', $counterPerc );
+                    }
+                    $result      .= '</tr>'."\n";
+                }
             }
-            $allTotal += $stats[$user]['TOTAL']['counter'];
         }
-
-        $result .= '<tr>';
-        $result .= "<td>ALL</td>\n";
-        $result .= "<td>TOTAL</td>\n";
-        $result .= sprintf( "<td>%d</td>\n", $stats[$user]['TOTAL']['counter'] );
-        $result .= '</tr>';
-
         $result .= "</table>\n";
+        unset($userStats);
         unset($stats);
         unset($users);
         return $result;
@@ -528,4 +578,15 @@ class ProcStats
 
         return $result;
     }
+
+    function _userCmp($a, $b)
+    {
+        return $b['TOTAL']['counter'] - $a['TOTAL']['counter'];
+    }
+
+    function _userProcCmp($a, $b)
+    {
+        return $b['counter'] - $a['counter'];
+    }
+
 }
