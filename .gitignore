@@ -4,5 +4,5 @@
 /BUILDROOT/*
 *~
 /userstats.sqlite
-/logs/*
+/logs/*.log
 /includes/config.php
