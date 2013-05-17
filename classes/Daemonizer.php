@@ -15,7 +15,7 @@ class Daemonizer {
     public static $stdout;
     public static $stderr;
     public static $stdin;
-    
+
     /**
      * Private static properties
      */
@@ -28,7 +28,7 @@ class Daemonizer {
     private static $_shouldReload = false;
     private static $_shouldRestart = false;
     private static $_shouldDebug = false;
-    
+
     /**
      * Activate the daemonization process
      * @param string $processName Functional process name for administrational purposes
@@ -37,7 +37,7 @@ class Daemonizer {
         // sanity checks and initialization of required properties
         self::_sanityCheck();
         self::_initialize($processName);
-        
+
         // check for correct commandline arguments
         if((int)self::$_shouldStop
            +(int)self::$_shouldStart
@@ -48,7 +48,7 @@ class Daemonizer {
         {
             die('Invalid option '.implode(' ',self::$_scriptArguments)."\r\nusage: ".self::$_scriptName." <start|stop|reload|restart|debug>\r\n\r\n");
         }
-        
+
         // process the requested arguments
         if(self::_isAlreadyRunning()) {
             if(self::$_runningPid===false) {
@@ -72,21 +72,21 @@ class Daemonizer {
         } elseif(self::$_shouldStop) {
             die("No running instance found to be stopped\r\n\r\n");
         }
-        
+
         // if the debug flag is set, prevent actual daemonization
         if(self::$_shouldDebug) return;
-        
+
         // fork the current process, make session leader and kill the old parent process to daemonize
         if (($pid=pcntl_fork())==-1 || ($pid==0 && posix_setsid()<0)) {
             die("Error starting the new instance\r\n\r\n");
         } elseif ($pid!=0) {
             exit(0);
         }
-        
+
         // administrative tasks to ensure that typical daemon requirements are met
         umask(0);
         if(defined('APP_ROOT')) chdir(APP_ROOT);
-        
+
         self::$pid = getmypid();
         if(self::_writePidfile(self::$_pidFile, (int)self::$pid)===false) {
             die("Could not open PID file for writing\r\n\r\n");
@@ -99,20 +99,20 @@ class Daemonizer {
         // make sure that a cleanup is performed after the main script finishes
         register_shutdown_function('Daemonizer::cleanup');
     }
-    
+
     /**
      * Cleanup method to be called when the main script finishes executing
      */
     public static function cleanup() {
         // check if we are the session leader, children must not execute this code
         if(posix_getsid(0)!=posix_getpid()) return;
-        
+
         //remove pid file if it exists
         if(file_exists(self::$_pidFile)) @unlink(self::$_pidFile);
-        
+
         Log::info('Shutdown complete');
     }
-    
+
     /**
      * Checks if all prerequisites are met to use this class
      */
@@ -122,7 +122,7 @@ class Daemonizer {
         if(!function_exists('pcntl_fork')) die("PCNTL PHP extension is required to run this application\r\n\r\n");
         if(!function_exists('posix_kill')) die("POSIX PHP extension is required to run this application\r\n\r\n");
     }
-    
+
     /**
      * Initialization of required private properties
      * @param string $processName Functional process name for administrational purposes
@@ -131,7 +131,7 @@ class Daemonizer {
         // commandline arguments are only available in the main scope
         // get them in scope here
         global $argv;
-        
+
         if(isset($argv)) {
             self::$_scriptName = basename(array_shift($argv));
             self::$_scriptArguments = array_map('strtolower',$argv);
@@ -154,7 +154,7 @@ class Daemonizer {
         $_pidFile = is_null($processName) ? array_shift(@explode('.',self::$_scriptName)) : $processName;
         self::$_pidFile = "{$tmpDir}{$_pidFile}.pid";
     }
-    
+
     /**
      * Redirect the standard input, output and error according to daemonizing rules
      */
@@ -162,7 +162,7 @@ class Daemonizer {
         // if logfile configuration is not set, log to /dev/null
         if(is_null(Config::get('log_application'))) Config::set('log_application', '/dev/null');
         if(is_null(Config::get('log_error'))) Config::set('log_error', '/dev/null');
-        
+
         // close and reopen the standard descriptors to redirect them
         fclose(STDIN);
         fclose(STDOUT);
@@ -171,7 +171,7 @@ class Daemonizer {
         self::$stdout = fopen(Config::get('log_application'), 'ab');
         self::$stderr = fopen(Config::get('log_error'), 'ab');
     }
-    
+
     /**
      * Check to see if a previous instance is already running
      * @return bool Previous instance found
@@ -184,7 +184,7 @@ class Daemonizer {
             return false;
         }
     }
-    
+
     /**
      * Write the PID file to a temporary directory
      * @return bool PID file was succesfully written
@@ -192,7 +192,7 @@ class Daemonizer {
     private static function _writePidfile($_pidFile, $pid) {
         return file_put_contents($_pidFile, $pid);
     }
-    
+
     /**
      * Stop the currently running instance of the process
      * @return bool Current instance was succesfully killed
@@ -201,7 +201,7 @@ class Daemonizer {
         // if no running instance was found, return immediately
         if(self::$_runningPid===false || self::$_runningPid<1) return true;
         $epoch = time();
-        
+
         // send a term signal to the running process
         posix_kill(self::$_runningPid, SIGTERM);
         while (posix_kill(self::$_runningPid,0)) {
@@ -218,5 +218,5 @@ class Daemonizer {
         }
         return true;
     }
-    
+
 }

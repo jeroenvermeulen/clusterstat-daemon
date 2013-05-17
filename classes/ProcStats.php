@@ -51,23 +51,26 @@ class ProcStats
                     $result[$user]['TOTAL']['jiff']    = 0;
                     $result[$user]['TOTAL']['counter'] = 0;
 
-                    foreach ( $startStats[$uid] as $proc => &$nil2 )
+                    if ( is_array($startStats[$uid]) )
                     {
-                        if (  !empty($startStats[$uid][$proc]['jiff'])
-                           && !empty($endStats[$uid][$proc]['jiff'])
-                           )
+                        foreach ( $startStats[$uid] as $proc => &$nil2 )
                         {
-                            $timeDiff = $endStats[$uid][$proc]['time'] - $startStats[$uid][$proc]['time'];
-                            $diffJiff = $endStats[$uid][$proc]['jiff'] - $startStats[$uid][$proc]['jiff'];
-                            $diffJiff = round( $diffJiff / $timeDiff );
-                            $diffJiff = max( 0, $diffJiff );
-                            $result[$user][$proc]['jiff']    = max( 0, $diffJiff );
-                            $result[$user][$proc]['counter'] = $endStats[$uid][$proc]['counter'];
-                            $result[$user]['TOTAL']['jiff']    += max( 0, $diffJiff );
-                            $result[$user]['TOTAL']['counter'] += $endStats[$uid][$proc]['counter'];
+                            if (  !empty($startStats[$uid][$proc]['jiff'])
+                               && !empty($endStats[$uid][$proc]['jiff'])
+                               )
+                            {
+                                $timeDiff = $endStats[$uid][$proc]['time'] - $startStats[$uid][$proc]['time'];
+                                $diffJiff = $endStats[$uid][$proc]['jiff'] - $startStats[$uid][$proc]['jiff'];
+                                $diffJiff = round( $diffJiff / $timeDiff );
+                                $diffJiff = max( 0, $diffJiff );
+                                $result[$user][$proc]['jiff']    = max( 0, $diffJiff );
+                                $result[$user][$proc]['counter'] = $endStats[$uid][$proc]['counter'];
+                                $result[$user]['TOTAL']['jiff']    += max( 0, $diffJiff );
+                                $result[$user]['TOTAL']['counter'] += $endStats[$uid][$proc]['counter'];
+                            }
                         }
+                        unset( $nil2 );
                     }
-                    unset( $nil2 );
                 }
             }
             unset( $nil );
@@ -86,16 +89,20 @@ class ProcStats
     {
         $result = '';
         $stats = $this->getProcStats();
-        $users = array_keys($stats);
-        $allTotal = 0;
-        foreach ( $users as $user )
+        if ( is_array($stats) )
         {
-            $result .= sprintf( '%s:%d ', $user, $stats[$user]['TOTAL']['counter'] );
-            $allTotal += $stats[$user]['TOTAL']['counter'];
+            $allTotal = 0;
+            $users = array_keys($stats);
+            foreach ( $users as $user )
+            {
+                $result .= sprintf( '%s:%d ', $user, $stats[$user]['TOTAL']['counter'] );
+                $allTotal += $stats[$user]['TOTAL']['counter'];
+            }
+            $result .= sprintf( '%s:%d ', 'TOTAL', $allTotal );
+            unset($allTotal);
+            unset($users);
         }
-        $result .= sprintf( '%s:%d ', 'TOTAL', $allTotal );
         unset($stats);
-        unset($users);
         return $result;
     }
 
@@ -103,100 +110,117 @@ class ProcStats
     {
         $result = '';
         $stats = $this->getProcStats();
-        $users = array_keys($stats);
-        $result .= 'OK | ';
-        $allTotal = 0;
-        foreach ( $users as $user )
+        if ( is_array($stats) )
         {
-            $result .= sprintf( '%s=%dc ', $user, $stats[$user]['TOTAL']['counter'] );
-            $allTotal += $stats[$user]['TOTAL']['counter'];
+            $users = array_keys($stats);
+            $result .= 'OK | ';
+            $allTotal = 0;
+            foreach ( $users as $user )
+            {
+                $result .= sprintf( '%s=%dc ', $user, $stats[$user]['TOTAL']['counter'] );
+                $allTotal += $stats[$user]['TOTAL']['counter'];
+            }
+            $result .= sprintf( '%s=%dc ', 'TOTAL', $allTotal );
+            unset($user);
+            unset($allTotal);
+            unset($users);
         }
-        $result .= sprintf( '%s=%dc ', 'TOTAL', $allTotal );
         unset($stats);
-        unset($users);
         return $result;
     }
 
     public function getProcStatsDetailHtml($path, $queryString)
     {
         $result       = '';
-        $stats        = $this->getProcStats();
         $result      .= '<table border="1" cellpadding="2" style="border-collapse:collapse; border-bottom:2px solid black;">'."\n";
         $result      .= '<tr>';
         $result      .= '<th>user<br />process</th>';
         $result      .= '<th colspan=2>current<br />jiff / sec</th>';
         $result      .= '<th colspan=2>total<br />counter</th>';
         $result      .= '</tr>'."\n";
-        $counterTotal = 0;
-        $jiffTotal    = 0;
-        uasort( $stats, array($this,'_userCmp') );
-        $users        = array_keys($stats);
-        foreach ( $users as $user )
+        $stats        = $this->getProcStats();
+        if ( is_array($stats) )
         {
-            $counterTotal += $stats[$user]['TOTAL']['counter'];
-            $jiffTotal    += $stats[$user]['TOTAL']['jiff'];
-        }
-        $stats['TOTAL']['TOTAL']['counter'] = $counterTotal;
-        $stats['TOTAL']['TOTAL']['jiff']    = $jiffTotal;
-        $counterTotal = empty($counterTotal) ? 1 : $counterTotal;
-        $jiffTotal    = empty($jiffTotal)    ? 1 : $jiffTotal;
-        array_unshift( $users, 'TOTAL' );
-        foreach ( $users as $user )
-        {
-            $userStats    = $stats[$user];
-            unset( $userStats['TOTAL'] );
-            uasort( $userStats, array($this,'_userProcCmp') );
-            $procs = array_keys( $userStats );
-            array_unshift($procs, 'TOTAL');
-            foreach ( $procs as $proc )
+            $counterTotal = 0;
+            $jiffTotal    = 0;
+            uasort( $stats, array($this,'_userCmp') );
+            $users = array_keys($stats);
+            foreach ( $users as $user )
             {
-                if ( !empty($stats[$user]['TOTAL']['counter']) )
-                {
-                    $counter      = $stats[$user][$proc]['counter'];
-                    $counterPerc  = $counter * 100 / $counterTotal;
-                    $jiff         = $stats[$user][$proc]['jiff'];
-                    $jiffPerc     = $jiff * 100 / $jiffTotal;
-                    $style        = '';
-                    $name         = $proc;
-                    if ( 'TOTAL' == $user )
-                    {
-                        $style    = 'background-color:#74B4CA; border-top:2px solid black;';
-                    }
-                    elseif ( 'TOTAL' == $proc )
-                    {
-                        $style    = 'background-color:#C8DAE6; border-top:2px solid black;';
-                        $name     = $user;
-                    }
-                    $result      .= sprintf( '<tr style="%s">', $style);
-                    $result      .= sprintf( '<td>%s</td>', $name );
-                    if ( empty($jiff) )
-                    {
-                        $result      .= '<td>&nbsp;</td>';
-                        $result      .= '<td>&nbsp;</td>';
-                    }
-                    else
-                    {
-                        $result      .= sprintf( '<td align="right">%d</td>', $jiff );
-                        $result      .= sprintf( '<td align="right">%.02f%%</td>', $jiffPerc );
-                    }
-                    if ( empty($counter) )
-                    {
-                        $result      .= '<td>&nbsp;</td>';
-                        $result      .= '<td>&nbsp;</td>';
-                    }
-                    else
-                    {
-                        $result      .= sprintf( '<td align="right">%d</td>', $counter );
-                        $result      .= sprintf( '<td align="right">%.02f%%</td>', $counterPerc );
-                    }
-                    $result      .= '</tr>'."\n";
-                }
+                $counterTotal += $stats[$user]['TOTAL']['counter'];
+                $jiffTotal    += $stats[$user]['TOTAL']['jiff'];
             }
+            $stats['TOTAL']['TOTAL']['counter'] = $counterTotal;
+            $stats['TOTAL']['TOTAL']['jiff']    = $jiffTotal;
+            $counterTotal = empty($counterTotal) ? 1 : $counterTotal;
+            $jiffTotal    = empty($jiffTotal)    ? 1 : $jiffTotal;
+            array_unshift( $users, 'TOTAL' );
+            foreach ( $users as $user )
+            {
+                $userStats    = $stats[$user];
+                unset( $userStats['TOTAL'] );
+                uasort( $userStats, array($this,'_userProcCmp') );
+                $procs = array_keys( $userStats );
+                array_unshift($procs, 'TOTAL');
+                foreach ( $procs as $proc )
+                {
+                    if ( !empty($stats[$user]['TOTAL']['counter']) )
+                    {
+                        $counter      = $stats[$user][$proc]['counter'];
+                        $counterPerc  = $counter * 100 / $counterTotal;
+                        $jiff         = $stats[$user][$proc]['jiff'];
+                        $jiffPerc     = $jiff * 100 / $jiffTotal;
+                        $style        = '';
+                        $name         = $proc;
+                        if ( 'TOTAL' == $user )
+                        {
+                            $style    = 'background-color:#74B4CA; border-top:2px solid black;';
+                        }
+                        elseif ( 'TOTAL' == $proc )
+                        {
+                            $style    = 'background-color:#C8DAE6; border-top:2px solid black;';
+                            $name     = $user;
+                        }
+                        $result      .= sprintf( '<tr style="%s">', $style);
+                        $result      .= sprintf( '<td>%s</td>', $name );
+                        if ( empty($jiff) )
+                        {
+                            $result      .= '<td>&nbsp;</td>';
+                            $result      .= '<td>&nbsp;</td>';
+                        }
+                        else
+                        {
+                            $result      .= sprintf( '<td align="right">%d</td>', $jiff );
+                            $result      .= sprintf( '<td align="right">%.02f%%</td>', $jiffPerc );
+                        }
+                        if ( empty($counter) )
+                        {
+                            $result      .= '<td>&nbsp;</td>';
+                            $result      .= '<td>&nbsp;</td>';
+                        }
+                        else
+                        {
+                            $result      .= sprintf( '<td align="right">%d</td>', $counter );
+                            $result      .= sprintf( '<td align="right">%.02f%%</td>', $counterPerc );
+                        }
+                        $result      .= '</tr>'."\n";
+                        unset($counter);
+                        unset($counterPerc);
+                        unset($jiff);
+                        unset($jiffPerc);
+                        unset($style);
+                        unset($name);
+                    }
+                }
+                unset($proc);
+                unset($userStats);
+            }
+            $result .= "</table>\n";
+            unset($users);
+            unset($counterTotal);
+            unset($jiffTotal);
         }
-        $result .= "</table>\n";
-        unset($userStats);
         unset($stats);
-        unset($users);
         return $result;
     }
 
@@ -207,32 +231,47 @@ class ProcStats
 
         $userProcStats = $this->_getUserProcStats();
 
-        foreach ( $userProcStats as $user => &$nil ) {
-            foreach ( $userProcStats[$user] as $name => &$nil2 ) {
-                if ( !empty( $this->_dbData[$user][$name] ) ) {
-                    $delta = $userProcStats[$user][$name]['jiff'] - $this->_dbData[$user][$name]['lastvalue'];
-                    $delta = max( 0, $delta );
-                    // Previous data found in database
-                    $this->_dbData[$user][$name]['counter'] += $delta;
-                }
-                else {
-                    // No entry found in database, create initial data.
-                    $this->_dbData[$user][$name]['linuxuser'] = $user;
-                    $this->_dbData[$user][$name]['process']   = $name;
-                    $this->_dbData[$user][$name]['counter']   = $userProcStats[$user][$name]['jiff'];
-                }
-                $this->_dbData[$user][$name]['lastvalue']      = $userProcStats[$user][$name]['jiff'] ;
-                $userProcStats[$user][$name]['counter'] = $this->_dbData[$user][$name]['counter'];
-            }
-            unset($nil2);
-        }
-        unset( $nil );
-
-        if ($this->_statFifoLen <= count($this->_statFifo) )
+        if ( is_array($userProcStats) )
         {
-            array_pop($this->_statFifo);
+            foreach ( $userProcStats as $user => &$nil )
+            {
+                if ( is_array($userProcStats[$user]) )
+                {
+                    foreach ( $userProcStats[$user] as $name => &$nil2 )
+                    {
+                        if ( !empty( $this->_dbData[$user][$name] ) )
+                        {
+                            $delta = $userProcStats[$user][$name]['jiff'] - $this->_dbData[$user][$name]['lastvalue'];
+                            $delta = max( 0, $delta );
+                            // Previous data found in database
+                            $this->_dbData[$user][$name]['counter'] += $delta;
+                            unset($delta);
+                        }
+                        else
+                        {
+                            // No entry found in database, create initial data.
+                            $this->_dbData[$user][$name]['linuxuser'] = $user;
+                            $this->_dbData[$user][$name]['process']   = $name;
+                            $this->_dbData[$user][$name]['counter']   = $userProcStats[$user][$name]['jiff'];
+                        }
+                        $this->_dbData[$user][$name]['lastvalue'] = $userProcStats[$user][$name]['jiff'] ;
+                        $userProcStats[$user][$name]['counter']   = $this->_dbData[$user][$name]['counter'];
+                    }
+                    unset($nil2);
+                    unset($name);
+                }
+            }
+            unset($nil);
+            unset($user);
+
+            if ($this->_statFifoLen <= count($this->_statFifo) )
+            {
+                array_pop($this->_statFifo);
+            }
+            array_unshift($this->_statFifo,$userProcStats);
         }
-        array_unshift($this->_statFifo,$userProcStats);
+
+        unset($userProcStats);
     }
 
     /**
@@ -252,15 +291,21 @@ class ProcStats
     {
         $sqliteFile   = $this->_workDir . '/' . $this->_sqliteFile;
         $templateFile = $this->_workDir.'/templates/'.$this->_sqliteFile;
-        if ( empty($this->_database) ) {
-            if ( !file_exists($sqliteFile) ) {
-                if ( file_exists($templateFile) ) {
+        if ( empty($this->_database) )
+        {
+            if ( !file_exists($sqliteFile) )
+            {
+                if ( file_exists($templateFile) )
+                {
                     $copyOK = copy( $templateFile, $sqliteFile );
-                    if ( !$copyOK ) {
+                    if ( !$copyOK )
+                    {
                         throw new Exception('Copy of SQLite file from template "'.$templateFile.'" to "'.$sqliteFile.'" failed.');
                     }
+                    unset($copyOK);
                 }
-                else {
+                else
+                {
                     throw new Exception('SQLite file does not exist, and template database file does also not exist.');
                 }
             }
@@ -269,6 +314,8 @@ class ProcStats
             // Set errormode to exceptions
             $this->_database->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         }
+        unset($sqliteFile);
+        unset($templateFile);
         return $this->_database;
     }
 
@@ -281,11 +328,16 @@ class ProcStats
     private function _getFromDatabase()
     {
         $result = array();
-        $database = $this->_getDatabase();
-        $rowset   = $database->query('SELECT linuxuser,process,lastvalue,counter FROM jiffy');
-        foreach ($rowset as $row) {
-            $result[ $row['linuxuser'] ][ $row['process'] ] = $row;
+        $rowSet = $this->_getDatabase()->query('SELECT linuxuser,process,lastvalue,counter FROM jiffy');
+        if ( is_array($rowSet) )
+        {
+            foreach ($rowSet as $row)
+            {
+                $result[ $row['linuxuser'] ][ $row['process'] ] = $row;
+            }
+            unset($row);
         }
+        unset($rowSet);
         return $result;
     }
 
@@ -302,8 +354,10 @@ class ProcStats
 
         $updateSQL   = 'UPDATE jiffy SET lastvalue=:lastvalue, counter=:counter WHERE linuxuser=:linuxuser AND process=:process';
         $updateStmt  = $database->prepare($updateSQL);
+        unset($updateSQL);
         $insertSQL   = 'INSERT INTO jiffy (linuxuser,process,lastvalue,counter) VALUES (:linuxuser,:process,:lastvalue,:counter)';
         $insertStmt  = $database->prepare($insertSQL);
+        unset($insertSQL);
 
         $linuxuser   = '';
         $process     = '';
@@ -322,28 +376,47 @@ class ProcStats
         $insertStmt->bindParam( ':counter',     $counter );
 
         // Loop through all messages and execute prepared insert statement
-        foreach ($data as $userdata) {
-            foreach ($userdata as $row) {
-                // Set values to bound variables
-                $linuxuser   = $row['linuxuser'];
-                $process     = $row['process'];
-                $lastvalue   = $row['lastvalue'];
-                $counter     = $row['counter'];
-
-                // Execute statement
-                $updateStmt->execute();
-                if ( 0 == $updateStmt->rowCount() )
+        if ( is_array($data) )
+        {
+            foreach ($data as $userdata)
+            {
+                if ( is_array($userdata) )
                 {
-                    $insertStmt->execute();
-                    if ( 0 == $insertStmt->rowCount() )
+                    foreach ($userdata as $row)
                     {
-                        Log::error(__CLASS__.'->'.__FUNCTION__.': Insert of record into SQLite database failed');
+                        // Set values to bound variables
+                        $linuxuser   = $row['linuxuser'];
+                        $process     = $row['process'];
+                        $lastvalue   = $row['lastvalue'];
+                        $counter     = $row['counter'];
+
+                        // Execute statement
+                        $updateStmt->execute();
+                        if ( 0 == $updateStmt->rowCount() )
+                        {
+                            $insertStmt->execute();
+                            if ( 0 == $insertStmt->rowCount() )
+                            {
+                                Log::error(__CLASS__.'->'.__FUNCTION__.': Insert of record into SQLite database failed');
+                            }
+                        }
                     }
+                    unset($row);
                 }
             }
+            unset($userdata);
         }
+        unset($data);
 
         $database->commit();
+
+        unset($updateStmt);
+        unset($insertStmt);
+        unset($database);
+        unset($linuxuser);
+        unset($process);
+        unset($lastvalue);
+        unset($counter);
     }
 
     /**
@@ -363,13 +436,17 @@ class ProcStats
         {
             $this->_statData = array();
 
-            while (false !== ($entry = readdir($dirHandle))) {
-                if ( is_numeric($entry) ) {
+            while (false !== ($entry = readdir($dirHandle)))
+            {
+                if ( is_numeric($entry) )
+                {
                     $this->_getProcInfo( $entry );
                 }
             }
+            unset($entry);
+            closedir( $dirHandle );
         }
-        closedir( $dirHandle );
+        unset($dirHandle);
     }
 
     /**
@@ -379,25 +456,30 @@ class ProcStats
     {
         $result = array();
 
-        foreach ( $this->_statData as $aProcInfo )
+        if ( is_array($this->_statData) )
         {
-            $uid      = $aProcInfo['uid'];
-            $procName = $aProcInfo['name'];
-
-            if ( !isset( $result[$uid][$procName] ) )
+            foreach ( $this->_statData as $aProcInfo )
             {
-                $result[$uid][$procName]['procs'] = 0;
-                $result[$uid][$procName]['jiff'] = 0;
+                $uid      = $aProcInfo['uid'];
+                $procName = $aProcInfo['name'];
+
+                if ( !isset( $result[$uid][$procName] ) )
+                {
+                    $result[$uid][$procName]['procs'] = 0;
+                    $result[$uid][$procName]['jiff'] = 0;
+                }
+
+                $result[$uid][$procName]['procs']++;
+                $iJiff = $aProcInfo['thisJiff'];
+
+                $result[$uid][$procName]['jiff'] += $iJiff;
+                $result[$uid][$procName]['time'] = $aProcInfo['time'];
+
+                unset($uid);
+                unset($procName);
+                unset($iJiff);
             }
-
-            $result[$uid][$procName]['procs']++;
-            $iJiff = $aProcInfo['thisJiff'];
-            // TODO: Do we want to take in account jiffies from dead children?
-            //       Currently it acts strange after ending a Siege.
-            //$iJiff += $aProcInfo['deadChildJiff'];
-
-            $result[$uid][$procName]['jiff'] += $iJiff;
-            $result[$uid][$procName]['time'] = $aProcInfo['time'];
+            unset($aProcInfo);
         }
 
         return $result;
@@ -413,13 +495,14 @@ class ProcStats
         $procStatFile =   $this->_procPath.'/'.$pid.'/stat';
         $procStatusFile = $this->_procPath.'/'.$pid.'/status';
 
-        try {
-            //$lines        = file( $procStatFile );
-            //$statLine     = reset( $lines );
+        try
+        {
+            $fMicroTime = microtime(true);
 
             $fh = fopen($procStatFile, 'r');
             $statLine = fread($fh, 1024);
             fclose($fh);
+            unset($fh);
 
             $statFields   = explode( ' ', $statLine );
             $uid          = null;
@@ -428,6 +511,7 @@ class ProcStats
             $fh = fopen($procStatusFile, 'r');
             $statusdata = fread($fh, 4096);
             fclose($fh);
+            unset($fh);
 
             $match = array();
             if ( preg_match( '/Uid:\s*\d+\s*(\d+)/', $statusdata, $match ) )
@@ -441,6 +525,7 @@ class ProcStats
             {
                 $uid  = fileowner($procStatFile);
             }
+            unset($match);
 
             // For info about the '/proc/PID/stat' fields:
             // http://www.kernel.org/doc/man-pages/online/pages/man5/proc.5.html
@@ -451,7 +536,8 @@ class ProcStats
             $name      = preg_replace('/\/\d+$/','',$name);
             $parentPid = $statFields[3];
 
-            if ( !isset( $this->_statData[$pid]['childPids'] ) ) {
+            if ( !isset( $this->_statData[$pid]['childPids'] ) )
+            {
                 $this->_statData[$pid]['childPids'] = array();
             }
             $this->_statData[$pid]['pid']       = $pid;
@@ -471,13 +557,23 @@ class ProcStats
             $this->_statData[$pid]['deadChildJiff'] += $statFields[15]; // cutime = ended children user mode
             $this->_statData[$pid]['deadChildJiff'] += $statFields[16]; // cstime = ended children kernel mode
 
-            $this->_statData[$pid]['time'] = microtime(true);
+            $this->_statData[$pid]['time'] = $fMicroTime;
+
+            unset($statFields);
+            unset($fMicroTime);
+            unset($uid);
+            unset($name);
+            unset($parentPid);
+            unset($pid);
         }
         catch ( Exception $e )
         {
             // For performance reasons we do not check if the files we read do
             // exist. Then this exception is hit.
         }
+
+        unset($procStatFile);
+        unset($procStatusFile);
     }
 
     /**
@@ -488,12 +584,15 @@ class ProcStats
      */
     function _uidToUser( $uid )
     {
-        if ( !isset($this->_uidcache[$uid]) ) {
+        if ( !isset($this->_uidcache[$uid]) )
+        {
             $aUserInfo = posix_getpwuid($uid);
-            if ( empty($aUserInfo['name']) ) {
+            if ( empty($aUserInfo['name']) )
+            {
                 $this->_uidcache[$uid] =  '['.$uid.']';
             }
-            else {
+            else
+            {
                 $this->_uidcache[$uid] = $aUserInfo['name'];
             }
         }
