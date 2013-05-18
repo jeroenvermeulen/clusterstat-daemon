@@ -51,7 +51,9 @@ class ProcStats
                     $result[$user]['TOTAL']['jiff']    = 0;
                     $result[$user]['TOTAL']['counter'] = 0;
 
-                    if ( is_array($startStats[$uid]) )
+                    if (  isset($startStats[$uid])
+                       && is_array($startStats[$uid])
+                       )
                     {
                         foreach ( $startStats[$uid] as $proc => &$nil2 )
                         {
@@ -117,8 +119,13 @@ class ProcStats
             $allTotal = 0;
             foreach ( $users as $user )
             {
-                $result .= sprintf( '%s=%dc ', $user, $stats[$user]['TOTAL']['counter'] );
-                $allTotal += $stats[$user]['TOTAL']['counter'];
+                if ( isset($stats[$user]['TOTAL']['counter']) )
+                {
+                    $value     = $stats[$user]['TOTAL']['counter'];
+                    $result   .= sprintf( '%s=%dc ', $user, $value );
+                    $allTotal += $value;
+                    unset($value);
+                }
             }
             $result .= sprintf( '%s=%dc ', 'TOTAL', $allTotal );
             unset($user);
@@ -147,8 +154,13 @@ class ProcStats
             $users = array_keys($stats);
             foreach ( $users as $user )
             {
-                $counterTotal += $stats[$user]['TOTAL']['counter'];
-                $jiffTotal    += $stats[$user]['TOTAL']['jiff'];
+                if (  isset($stats[$user]['TOTAL']['counter'])
+                   && isset($stats[$user]['TOTAL']['jiff'])
+                   )
+                {
+                    $counterTotal += $stats[$user]['TOTAL']['counter'];
+                    $jiffTotal    += $stats[$user]['TOTAL']['jiff'];
+                }
             }
             $stats['TOTAL']['TOTAL']['counter'] = $counterTotal;
             $stats['TOTAL']['TOTAL']['jiff']    = $jiffTotal;
@@ -164,7 +176,9 @@ class ProcStats
                 array_unshift($procs, 'TOTAL');
                 foreach ( $procs as $proc )
                 {
-                    if ( !empty($stats[$user]['TOTAL']['counter']) )
+                    if (  isset($stats[$user][$proc]['counter'])
+                       && isset($stats[$user][$proc]['jiff'])
+                       )
                     {
                         $counter      = $stats[$user][$proc]['counter'];
                         $counterPerc  = $counter * 100 / $counterTotal;
@@ -235,27 +249,32 @@ class ProcStats
         {
             foreach ( $userProcStats as $user => &$nil )
             {
-                if ( is_array($userProcStats[$user]) )
+                if (  is_array($userProcStats[$user]) )
                 {
                     foreach ( $userProcStats[$user] as $name => &$nil2 )
                     {
-                        if ( !empty( $this->_dbData[$user][$name] ) )
+                        if ( isset($userProcStats[$user][$name]['jiff']) )
                         {
-                            $delta = $userProcStats[$user][$name]['jiff'] - $this->_dbData[$user][$name]['lastvalue'];
-                            $delta = max( 0, $delta );
-                            // Previous data found in database
-                            $this->_dbData[$user][$name]['counter'] += $delta;
-                            unset($delta);
+                            if (  isset( $this->_dbData[$user][$name]['lastvalue'] )
+                               && isset( $this->_dbData[$user][$name]['counter'] )
+                               )
+                            {
+                                $delta = $userProcStats[$user][$name]['jiff'] - $this->_dbData[$user][$name]['lastvalue'];
+                                $delta = max( 0, $delta );
+                                // Previous data found in database
+                                $this->_dbData[$user][$name]['counter'] += $delta;
+                                unset($delta);
+                            }
+                            else
+                            {
+                                // No entry found in database, create initial data.
+                                $this->_dbData[$user][$name]['linuxuser'] = $user;
+                                $this->_dbData[$user][$name]['process']   = $name;
+                                $this->_dbData[$user][$name]['counter']   = $userProcStats[$user][$name]['jiff'];
+                            }
+                            $this->_dbData[$user][$name]['lastvalue'] = $userProcStats[$user][$name]['jiff'] ;
+                            $userProcStats[$user][$name]['counter']   = $this->_dbData[$user][$name]['counter'];
                         }
-                        else
-                        {
-                            // No entry found in database, create initial data.
-                            $this->_dbData[$user][$name]['linuxuser'] = $user;
-                            $this->_dbData[$user][$name]['process']   = $name;
-                            $this->_dbData[$user][$name]['counter']   = $userProcStats[$user][$name]['jiff'];
-                        }
-                        $this->_dbData[$user][$name]['lastvalue'] = $userProcStats[$user][$name]['jiff'] ;
-                        $userProcStats[$user][$name]['counter']   = $this->_dbData[$user][$name]['counter'];
                     }
                     unset($nil2);
                     unset($name);
@@ -384,20 +403,27 @@ class ProcStats
                 {
                     foreach ($userdata as $row)
                     {
-                        // Set values to bound variables
-                        $linuxuser   = $row['linuxuser'];
-                        $process     = $row['process'];
-                        $lastvalue   = $row['lastvalue'];
-                        $counter     = $row['counter'];
-
-                        // Execute statement
-                        $updateStmt->execute();
-                        if ( 0 == $updateStmt->rowCount() )
+                        if (  isset($row['linuxuser'])
+                           && isset($row['process'])
+                           && isset($row['lastvalue'])
+                           && isset($row['counter'])
+                           )
                         {
-                            $insertStmt->execute();
-                            if ( 0 == $insertStmt->rowCount() )
+                            // Set values to bound variables
+                            $linuxuser   = $row['linuxuser'];
+                            $process     = $row['process'];
+                            $lastvalue   = $row['lastvalue'];
+                            $counter     = $row['counter'];
+
+                            // Execute statement
+                            $updateStmt->execute();
+                            if ( 0 == $updateStmt->rowCount() )
                             {
-                                Log::error(__CLASS__.'->'.__FUNCTION__.': Insert of record into SQLite database failed');
+                                $insertStmt->execute();
+                                if ( 0 == $insertStmt->rowCount() )
+                                {
+                                    Log::error(__CLASS__.'->'.__FUNCTION__.': Insert of record into SQLite database failed');
+                                }
                             }
                         }
                     }
@@ -460,24 +486,32 @@ class ProcStats
         {
             foreach ( $this->_statData as $aProcInfo )
             {
-                $uid      = $aProcInfo['uid'];
-                $procName = $aProcInfo['name'];
-
-                if ( !isset( $result[$uid][$procName] ) )
+                if (  is_array($aProcInfo)
+                   && isset($aProcInfo['uid'])
+                   && isset($aProcInfo['name'])
+                   && isset($aProcInfo['thisJiff'])
+                   && isset($aProcInfo['time'])
+                   )
                 {
-                    $result[$uid][$procName]['procs'] = 0;
-                    $result[$uid][$procName]['jiff'] = 0;
+                    $uid      = $aProcInfo['uid'];
+                    $procName = $aProcInfo['name'];
+
+                    if ( !isset( $result[$uid][$procName] ) )
+                    {
+                        $result[$uid][$procName]['procs'] = 0;
+                        $result[$uid][$procName]['jiff'] = 0;
+                    }
+
+                    $result[$uid][$procName]['procs']++;
+                    $iJiff = $aProcInfo['thisJiff'];
+
+                    $result[$uid][$procName]['jiff'] += $iJiff;
+                    $result[$uid][$procName]['time'] = $aProcInfo['time'];
+
+                    unset($uid);
+                    unset($procName);
+                    unset($iJiff);
                 }
-
-                $result[$uid][$procName]['procs']++;
-                $iJiff = $aProcInfo['thisJiff'];
-
-                $result[$uid][$procName]['jiff'] += $iJiff;
-                $result[$uid][$procName]['time'] = $aProcInfo['time'];
-
-                unset($uid);
-                unset($procName);
-                unset($iJiff);
             }
             unset($aProcInfo);
         }
@@ -497,14 +531,6 @@ class ProcStats
 
         try
         {
-            $fMicroTime = microtime(true);
-
-            $fh = fopen($procStatFile, 'r');
-            $statLine = fread($fh, 1024);
-            fclose($fh);
-            unset($fh);
-
-            $statFields   = explode( ' ', $statLine );
             $uid          = null;
 
             // $statusdata = file_get_contents( $procStatusFile );
@@ -527,44 +553,56 @@ class ProcStats
             }
             unset($match);
 
-            // For info about the '/proc/PID/stat' fields:
-            // http://www.kernel.org/doc/man-pages/online/pages/man5/proc.5.html
-            // search for "/proc/[pid]/stat"
+            $fMicroTime = microtime(true);
 
-            $name      = $statFields[1];
-            $name      = trim( $name, '()-0123456789/' );
-            $name      = preg_replace('/\/\d+$/','',$name);
-            $parentPid = $statFields[3];
+            $fh = fopen($procStatFile, 'r');
+            $statLine = fread($fh, 1024);
+            fclose($fh);
+            unset($fh);
 
-            if ( !isset( $this->_statData[$pid]['childPids'] ) )
+            $statFields   = explode( ' ', $statLine );
+
+            if ( 17 <= count($statFields) )
             {
-                $this->_statData[$pid]['childPids'] = array();
+                // For info about the '/proc/PID/stat' fields:
+                // http://www.kernel.org/doc/man-pages/online/pages/man5/proc.5.html
+                // search for "/proc/[pid]/stat"
+
+                $name      = $statFields[1];
+                $name      = trim( $name, '()-0123456789/' );
+                $name      = preg_replace('/\/\d+$/','',$name);
+                $parentPid = $statFields[3];
+
+                if ( !isset( $this->_statData[$pid]['childPids'] ) )
+                {
+                    $this->_statData[$pid]['childPids'] = array();
+                }
+                $this->_statData[$pid]['pid']       = $pid;
+                $this->_statData[$pid]['name']      = $name;
+                $this->_statData[$pid]['parentPid'] = $parentPid;
+                if ( !empty($parentPid) ) {
+                    $this->_statData[$parentPid]['childPids'][] = $pid;
+                }
+
+                $this->_statData[$pid]['uid']  = $uid;
+
+                $this->_statData[$pid]['thisJiff'] = 0;
+                $this->_statData[$pid]['thisJiff'] += $statFields[13]; // utime = user mode
+                $this->_statData[$pid]['thisJiff'] += $statFields[14]; // stime = kernel mode
+
+                $this->_statData[$pid]['deadChildJiff'] = 0;
+                $this->_statData[$pid]['deadChildJiff'] += $statFields[15]; // cutime = ended children user mode
+                $this->_statData[$pid]['deadChildJiff'] += $statFields[16]; // cstime = ended children kernel mode
+
+                $this->_statData[$pid]['time'] = $fMicroTime;
+
+                unset($statFields);
+                unset($fMicroTime);
+                unset($uid);
+                unset($name);
+                unset($parentPid);
+                unset($pid);
             }
-            $this->_statData[$pid]['pid']       = $pid;
-            $this->_statData[$pid]['name']      = $name;
-            $this->_statData[$pid]['parentPid'] = $parentPid;
-            if ( !empty($parentPid) ) {
-                $this->_statData[$parentPid]['childPids'][] = $pid;
-            }
-
-            $this->_statData[$pid]['uid']  = $uid;
-
-            $this->_statData[$pid]['thisJiff'] = 0;
-            $this->_statData[$pid]['thisJiff'] += $statFields[13]; // utime = user mode
-            $this->_statData[$pid]['thisJiff'] += $statFields[14]; // stime = kernel mode
-
-            $this->_statData[$pid]['deadChildJiff'] = 0;
-            $this->_statData[$pid]['deadChildJiff'] += $statFields[15]; // cutime = ended children user mode
-            $this->_statData[$pid]['deadChildJiff'] += $statFields[16]; // cstime = ended children kernel mode
-
-            $this->_statData[$pid]['time'] = $fMicroTime;
-
-            unset($statFields);
-            unset($fMicroTime);
-            unset($uid);
-            unset($name);
-            unset($parentPid);
-            unset($pid);
         }
         catch ( Exception $e )
         {

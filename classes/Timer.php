@@ -7,12 +7,12 @@
  * @author      Bas Peters <bas.peters@nedstars.nl>
  */
 class Timer {
-    
+
     /**
      * @var Array containing timers
      */
     private static $_timers = array();
-    
+
     /**
      * Register a new timer
      * @param callback $callback The function to be called
@@ -38,7 +38,14 @@ class Timer {
     public static function checkTimers() {
         foreach(self::$_timers as &$timer) {
             if($timer['last_run']+$timer['timeout']<microtime(true)) {
-                call_user_func($timer['callback']);
+                try {
+                    call_user_func($timer['callback']);
+                } catch(Exception $e) {
+                    Log::error( "Error running timer function {$timer['callback']}: ".$e->getMessage() );
+                    Log::info( "Timer function {$timer['callback']} triggered an error" );
+                    return;
+                }
+                // Also update last_run on error so the timer doesn't keep firing when errors happen.
                 $timer['last_run']=microtime(true);
             }
         }
