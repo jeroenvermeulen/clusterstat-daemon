@@ -56,7 +56,7 @@ try {
 
     // register timers
     $timer = new Timer();
-    $timer->register(array('Log','rotate'), 30);
+    $timer->register(array('Log','rotate'), 300);
 
     $timer->register(array($procstats,'collectProcStats'), 1, true);
     $timer->register(array($procstats,'writeDatabase'), 300, false);

@@ -245,50 +245,39 @@ class ProcStats
 
         $userProcStats = $this->_getUserProcStats();
 
-        if ( is_array($userProcStats) )
+        foreach ( $userProcStats as $user => &$nil )
         {
-            foreach ( $userProcStats as $user => &$nil )
+            foreach ( $userProcStats[$user] as $name => &$nil2 )
             {
-                if (  is_array($userProcStats[$user]) )
+                if (  isset( $this->_dbData[$user][$name]['counter'] ) )
                 {
-                    foreach ( $userProcStats[$user] as $name => &$nil2 )
-                    {
-                        if ( isset($userProcStats[$user][$name]['jiff']) )
-                        {
-                            if (  isset( $this->_dbData[$user][$name]['lastvalue'] )
-                               && isset( $this->_dbData[$user][$name]['counter'] )
-                               )
-                            {
-                                $delta = $userProcStats[$user][$name]['jiff'] - $this->_dbData[$user][$name]['lastvalue'];
-                                $delta = max( 0, $delta );
-                                // Previous data found in database
-                                $this->_dbData[$user][$name]['counter'] += $delta;
-                                unset($delta);
-                            }
-                            else
-                            {
-                                // No entry found in database, create initial data.
-                                $this->_dbData[$user][$name]['linuxuser'] = $user;
-                                $this->_dbData[$user][$name]['process']   = $name;
-                                $this->_dbData[$user][$name]['counter']   = $userProcStats[$user][$name]['jiff'];
-                            }
-                            $this->_dbData[$user][$name]['lastvalue'] = $userProcStats[$user][$name]['jiff'] ;
-                            $userProcStats[$user][$name]['counter']   = $this->_dbData[$user][$name]['counter'];
-                        }
-                    }
-                    unset($nil2);
-                    unset($name);
+                    $delta = $userProcStats[$user][$name]['jiff'] - $this->_dbData[$user][$name]['lastvalue'];
+                    $delta = max( 0, $delta );
+                    // Previous data found in database
+                    $this->_dbData[$user][$name]['counter'] += $delta;
+                    unset($delta);
                 }
+                else
+                {
+                    // No entry found in database, create initial data.
+                    $this->_dbData[$user][$name]['linuxuser'] = $user;
+                    $this->_dbData[$user][$name]['process']   = $name;
+                    $this->_dbData[$user][$name]['counter']   = $userProcStats[$user][$name]['jiff'];
+                }
+                $this->_dbData[$user][$name]['lastvalue'] = $userProcStats[$user][$name]['jiff'] ;
+                $userProcStats[$user][$name]['counter']   = $this->_dbData[$user][$name]['counter'];
             }
-            unset($nil);
-            unset($user);
-
-            if ($this->_statFifoLen <= count($this->_statFifo) )
-            {
-                array_pop($this->_statFifo);
-            }
-            array_unshift($this->_statFifo,$userProcStats);
+            unset($nil2);
+            unset($name);
         }
+        unset($nil);
+        unset($user);
+
+        if ($this->_statFifoLen <= count($this->_statFifo) )
+        {
+            array_pop($this->_statFifo);
+        }
+        array_unshift($this->_statFifo,$userProcStats);
 
         unset($userProcStats);
     }
@@ -482,39 +471,28 @@ class ProcStats
     {
         $result = array();
 
-        if ( is_array($this->_statData) )
+        foreach ( $this->_statData as $aProcInfo )
         {
-            foreach ( $this->_statData as $aProcInfo )
+            $uid      = $aProcInfo['uid'];
+            $procName = $aProcInfo['name'];
+
+            if ( !isset( $result[$uid][$procName] ) )
             {
-                if (  is_array($aProcInfo)
-                   && isset($aProcInfo['uid'])
-                   && isset($aProcInfo['name'])
-                   && isset($aProcInfo['thisJiff'])
-                   && isset($aProcInfo['time'])
-                   )
-                {
-                    $uid      = $aProcInfo['uid'];
-                    $procName = $aProcInfo['name'];
-
-                    if ( !isset( $result[$uid][$procName] ) )
-                    {
-                        $result[$uid][$procName]['procs'] = 0;
-                        $result[$uid][$procName]['jiff'] = 0;
-                    }
-
-                    $result[$uid][$procName]['procs']++;
-                    $iJiff = $aProcInfo['thisJiff'];
-
-                    $result[$uid][$procName]['jiff'] += $iJiff;
-                    $result[$uid][$procName]['time'] = $aProcInfo['time'];
-
-                    unset($uid);
-                    unset($procName);
-                    unset($iJiff);
-                }
+                $result[$uid][$procName]['procs'] = 0;
+                $result[$uid][$procName]['jiff'] = 0;
             }
-            unset($aProcInfo);
+
+            $result[$uid][$procName]['procs']++;
+            $iJiff = $aProcInfo['thisJiff'];
+
+            $result[$uid][$procName]['jiff'] += $iJiff;
+            $result[$uid][$procName]['time'] = $aProcInfo['time'];
+
+            unset($uid);
+            unset($procName);
+            unset($iJiff);
         }
+        unset($aProcInfo);
 
         return $result;
     }

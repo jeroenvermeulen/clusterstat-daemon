@@ -277,7 +277,7 @@ class Webserver {
 
             if($this->_webserverSocket===FALSE) {
                 Log::error('error starting webserver: '.$errstr);
-                exit;
+                die( 'ERROR starting webserver: '.$errstr );
             }
 
             // Timeout for socket operation 5 seconds
