@@ -20,6 +20,7 @@ Install from BitBucket on Ubuntu
 mkdir -p /usr/share
 cd /usr/share
 git clone git@bitbucket.org:jeroenvermeulen/clusterstat-daemon.git
+cp /usr/share/clusterstat-daemon/includes/config.php.dist /usr/share/clusterstat-daemon/includes/config.php
 ln -sfn /usr/share/clusterstat-daemon/clusterstatd /etc/init.d/clusterstatd
 update-rc.d clusterstatd defaults
 service clusterstatd start
