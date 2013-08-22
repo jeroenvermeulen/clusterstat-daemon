@@ -88,8 +88,8 @@
 		This process is responsible for collecting cluster application server customer metrics
 	</div>
 	<div id="runtime">
-		Memory Used By Daemon: <span id="main_memory_usage">{$runtimestats.memory_usage}</span>
-		Uptime: <span id="main_uptime">{$runtimestats.uptime}</span>
+		Memory Used by Daemon: <span id="main_memory_usage">{$runtimestats.memory_usage}</span>
+		Daemon Uptime: <span id="main_uptime">{$runtimestats.uptime}</span>
 		Server Load: <span id="main_load">{$runtimestats.load}</span>
 	</div>
 	<div id="contents">
