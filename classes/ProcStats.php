@@ -1,16 +1,31 @@
 <?php
 
+/**
+ * Class ProcStats
+ *
+ * The daemon timer runs timerCollectStats every second.
+ * The daemon timer runs timerWriteDatabase every 5 minutes, to backup data in case the daemon gets restarted.
+ *
+ * Functions to retrieve collected data:
+ *   - getProcStats      - Returns an array, provides the data for the other data retrieving functions
+ *   - getJsonProcStats
+ *   - getCactiProcStats
+ *   - getNagiosProcStats
+ *   - getProcStatsDetailHtml
+ *
+ */
+
 class ProcStats
 {
-    protected $_procPath   = '/proc';
-    protected $_statData   = array();
-    protected $_database   = null;
-    protected $_uidcache   = array();
-    protected $_sqliteFile = 'userstats.sqlite';
-    protected $_statFifo   = array();
-    protected $_statFifoLen = 3;
-    protected $_workDir    = null;
-    protected $_dbData     = null;
+    protected $_procPath     = '/proc';
+    protected $_prevStatData = array();
+    protected $_database     = null;
+    protected $_uidcache     = array();
+    protected $_sqliteFile   = 'userstats.sqlite';
+    protected $_statFifo     = array();
+    protected $_statFifoLen  = 3;
+    protected $_workDir      = null;
+    protected $_dbData       = null;
 
     /**
      * Constructor - initialize some data.
@@ -30,7 +45,7 @@ class ProcStats
     }
 
     /**
-     * Returns a JSON array with process statitics
+     * Returns an array with process statitics
      *
      * @return array Process statistics.
      */
@@ -44,7 +59,7 @@ class ProcStats
 
             if ( is_array($startStats) && is_array($endStats) )
             {
-                foreach ( $endStats as $uid => &$nil )
+                foreach ( $this->_dbData as $uid => &$nil )
                 {
                     $user = $this->_uidToUser($uid);
 
@@ -55,20 +70,24 @@ class ProcStats
                        && is_array($startStats[$uid])
                        )
                     {
-                        foreach ( $startStats[$uid] as $proc => &$nil2 )
+                        foreach ( $this->_dbData[$uid] as $process => &$nil2 )
                         {
-                            if (  !empty($startStats[$uid][$proc]['jiff'])
-                               && !empty($endStats[$uid][$proc]['jiff'])
-                               )
+                            if ( 10 < $this->_dbData[$uid][$process]['counter'] )
                             {
-                                $timeDiff = $endStats[$uid][$proc]['time'] - $startStats[$uid][$proc]['time'];
-                                $diffJiff = $endStats[$uid][$proc]['jiff'] - $startStats[$uid][$proc]['jiff'];
-                                $diffJiff = round( $diffJiff / $timeDiff );
-                                $diffJiff = max( 0, $diffJiff );
-                                $result[$user][$proc]['jiff']    = max( 0, $diffJiff );
-                                $result[$user][$proc]['counter'] = $endStats[$uid][$proc]['counter'];
-                                $result[$user]['TOTAL']['jiff']    += max( 0, $diffJiff );
-                                $result[$user]['TOTAL']['counter'] += $endStats[$uid][$proc]['counter'];
+                                $result[$user][$process]['jiff'] = 0;
+                                if (  !empty($startStats[$uid][$process]['jiff'])
+                                   && !empty($endStats[$uid][$process]['jiff'])
+                                   )
+                                {
+                                    $timeDiff = $endStats[$uid][$process]['time'] - $startStats[$uid][$process]['time'];
+                                    $diffJiff = $endStats[$uid][$process]['jiff'] - $startStats[$uid][$process]['jiff'];
+                                    $diffJiff = round( $diffJiff / $timeDiff );
+                                    $diffJiff = max( 0, $diffJiff );
+                                    $result[$user][$process]['jiff']    = max( 0, $diffJiff );
+                                    $result[$user]['TOTAL']['jiff']  += max( 0, $diffJiff );
+                                }
+                                $result[$user][$process]['counter'] = $this->_dbData[$uid][$process]['counter'];
+                                $result[$user]['TOTAL']['counter'] += $this->_dbData[$uid][$process]['counter'];
                             }
                         }
                         unset( $nil2 );
@@ -174,23 +193,23 @@ class ProcStats
                 uasort( $userStats, array($this,'_userProcCmp') );
                 $procs = array_keys( $userStats );
                 array_unshift($procs, 'TOTAL');
-                foreach ( $procs as $proc )
+                foreach ( $procs as $process )
                 {
-                    if (  isset($stats[$user][$proc]['counter'])
-                       && isset($stats[$user][$proc]['jiff'])
+                    if (  isset($stats[$user][$process]['counter'])
+                       && isset($stats[$user][$process]['jiff'])
                        )
                     {
-                        $counter      = $stats[$user][$proc]['counter'];
+                        $counter      = $stats[$user][$process]['counter'];
                         $counterPerc  = $counter * 100 / $counterTotal;
-                        $jiff         = $stats[$user][$proc]['jiff'];
+                        $jiff         = $stats[$user][$process]['jiff'];
                         $jiffPerc     = $jiff * 100 / $jiffTotal;
                         $style        = '';
-                        $name         = $proc;
+                        $name         = $process;
                         if ( 'TOTAL' == $user )
                         {
                             $style    = 'background-color:#74B4CA; border-top:2px solid black;';
                         }
-                        elseif ( 'TOTAL' == $proc )
+                        elseif ( 'TOTAL' == $process )
                         {
                             $style    = 'background-color:#C8DAE6; border-top:2px solid black;';
                             $name     = $user;
@@ -199,13 +218,13 @@ class ProcStats
                         $result      .= sprintf( '<td>%s</td>', $name );
                         if ( empty($jiff) )
                         {
-                            $result      .= '<td>&nbsp;</td>';
-                            $result      .= '<td>&nbsp;</td>';
+                            $result      .= '<td width="30">&nbsp;</td>';
+                            $result      .= '<td width="60">&nbsp;</td>';
                         }
                         else
                         {
-                            $result      .= sprintf( '<td align="right">%d</td>', $jiff );
-                            $result      .= sprintf( '<td align="right">%.02f%%</td>', $jiffPerc );
+                            $result      .= sprintf( '<td width="30" align="right">%d</td>', $jiff );
+                            $result      .= sprintf( '<td width="60" align="right">%.02f%%</td>', $jiffPerc );
                         }
                         if ( empty($counter) )
                         {
@@ -226,7 +245,7 @@ class ProcStats
                         unset($name);
                     }
                 }
-                unset($proc);
+                unset($process);
                 unset($userStats);
             }
             $result .= "</table>\n";
@@ -238,37 +257,45 @@ class ProcStats
         return $result;
     }
 
-    public function collectProcStats()
+    /**
+     * timerCollectStats
+     *
+     * This function must be run every X seconds by the daemon.
+     * It calls functions to collect data from /proc, do calculations and store it in the object in $this->_dbData
+     */
+    public function timerCollectStats()
     {
-        $this->_collectProcStats();
-        //$this->_debugTree();
+        $statData = $this->_collectProcStats();
+        //echo $this->_debugTree( $statData );
 
-        $userProcStats = $this->_getUserProcStats();
+        $userProcStats = $this->_getUserProcStats( $statData, $this->_prevStatData );
+        $this->_prevStatData = $statData;
 
-        foreach ( $userProcStats as $user => &$nil )
+        foreach ( $userProcStats as $uid => &$nil )
         {
-            foreach ( $userProcStats[$user] as $name => &$nil2 )
+            foreach ( $userProcStats[$uid] as $process => &$nil2 )
             {
-                if (  isset( $this->_dbData[$user][$name]['counter'] ) )
+                if (  isset( $this->_dbData[$uid][$process]['counter'] ) )
                 {
-                    $delta = $userProcStats[$user][$name]['jiff'] - $this->_dbData[$user][$name]['lastvalue'];
-                    $delta = max( 0, $delta );
+                    // Delta mechanism is moved to _getUserProcStats.
+                    //$delta = $userProcStats[$user][$process]['jiff'] - $this->_dbData[$user][$process]['lastvalue'];
+                    //$delta = max( 0, $delta );
                     // Previous data found in database
-                    $this->_dbData[$user][$name]['counter'] += $delta;
+                    $this->_dbData[$uid][$process]['counter'] += $userProcStats[$uid][$process]['jiff'];
                     unset($delta);
                 }
                 else
                 {
                     // No entry found in database, create initial data.
-                    $this->_dbData[$user][$name]['linuxuser'] = $user;
-                    $this->_dbData[$user][$name]['process']   = $name;
-                    $this->_dbData[$user][$name]['counter']   = $userProcStats[$user][$name]['jiff'];
+                    $this->_dbData[$uid][$process]['linuxuser'] = $uid;
+                    $this->_dbData[$uid][$process]['process']   = $process;
+                    $this->_dbData[$uid][$process]['counter']   = $userProcStats[$uid][$process]['jiff'];
                 }
-                $this->_dbData[$user][$name]['lastvalue'] = $userProcStats[$user][$name]['jiff'] ;
-                $userProcStats[$user][$name]['counter']   = $this->_dbData[$user][$name]['counter'];
+                $this->_dbData[$uid][$process]['lastvalue'] = $userProcStats[$uid][$process]['jiff'] ;
+                $userProcStats[$uid][$process]['counter']   = $this->_dbData[$uid][$process]['counter'];
             }
             unset($nil2);
-            unset($name);
+            unset($process);
         }
         unset($nil);
         unset($user);
@@ -282,10 +309,16 @@ class ProcStats
         unset($userProcStats);
     }
 
+    public function debugTree($path, $queryString)
+    {
+        $statData = $this->_collectProcStats();
+        return $this->_debugTree( $statData );
+    }
+
     /**
-     * To be called by timer
+     * To be called by timer, writes database to file so it doesn't get lost on daemon restart.
      */
-    function writeDatabase()
+    public function timerWriteDatabase()
     {
         $this->_writeToDatabase( $this->_dbData );
     }
@@ -295,7 +328,7 @@ class ProcStats
      *
      * @return PDO
      */
-    private function _getDatabase()
+    protected function _getDatabase()
     {
         $sqliteFile   = $this->_workDir . '/' . $this->_sqliteFile;
         $templateFile = $this->_workDir.'/templates/'.$this->_sqliteFile;
@@ -333,7 +366,7 @@ class ProcStats
      *
      * @return array - the row data
      */
-    private function _getFromDatabase()
+    protected function _getFromDatabase()
     {
         $result = array();
         $rowSet = $this->_getDatabase()->query('SELECT linuxuser,process,lastvalue,counter FROM jiffy');
@@ -355,7 +388,7 @@ class ProcStats
      *
      * @param array $data - the row data to write
      */
-    private function _writeToDatabase( $data )
+    protected function _writeToDatabase( $data )
     {
         $database    = $this->_getDatabase();
         $database->beginTransaction();
@@ -435,13 +468,23 @@ class ProcStats
     }
 
     /**
-     * Loop trough all process dirs in /proc and collect process data.
-     * The process data is saved within this class.
+     * Loop trough all dirs in /proc and collect process data.
+     * This means data is collected for all current running processes.
      *
      * @throws Exception
+     * @return $result - Array on the form of:
+     *                        $result[ PID ][ 'pid' ]           = Integer
+     *                        $result[ PID ][ 'name' ]          = String
+     *                        $result[ PID ][ 'parentPid' ]     = Integer
+     *                        $result[ PID ][ 'uid' ]           = Integer
+     *                        $result[ PID ][ 'thisJiff' ]      = Integer
+     *                        $result[ PID ][ 'deadChildJiff' ] = Integer
+     *                        $result[ PID ][ 'time' ]          = Integer
+     *                        $result[ PID ][ 'childPids' ]     = Array of Integer
      */
-    private function _collectProcStats()
+    protected function _collectProcStats()
     {
+        $result = array();
         $dirHandle = opendir($this->_procPath);
         if ( false === $dirHandle )
         {
@@ -449,29 +492,34 @@ class ProcStats
         }
         else
         {
-            $this->_statData = array();
-
             while (false !== ($entry = readdir($dirHandle)))
             {
-                if ( is_numeric($entry) )
+                if ( is_numeric($entry) ) // $entry = PID
                 {
-                    $this->_getProcInfo( $entry );
+                    $this->_getProcInfo( $entry, $result );
                 }
             }
             unset($entry);
             closedir( $dirHandle );
         }
         unset($dirHandle);
+        return $result;
     }
 
     /**
-     * @return array
+     * Loops trough the data in $statData and creates a sum for each process name under each user.
+     *
+     * @param  $statData      array received from _collectProcStats
+     * @param  $prevStatData  array received from previous run of _collectProcStats
+     * @return array - Array with sums like:  $result[ USER ][ PROCESSNAME ][ 'jiff' ]  = sum of used jiffies since last collect
+     *                                        $result[ USER ][ PROCESSNAME ][ 'time' ]  = unix time of getting info from /proc
+     *                                        $result[ USER ][ PROCESSNAME ][ 'procs' ] = number of processes
      */
-    private function _getUserProcStats()
+    protected function _getUserProcStats( $statData, $prevStatData )
     {
         $result = array();
 
-        foreach ( $this->_statData as $aProcInfo )
+        foreach ( $statData as $pid => $aProcInfo )
         {
             $uid      = $aProcInfo['uid'];
             $procName = $aProcInfo['name'];
@@ -484,7 +532,12 @@ class ProcStats
 
             $result[$uid][$procName]['procs']++;
             $iJiff = $aProcInfo['thisJiff'];
-
+            if ( isset( $prevStatData[$pid]['thisJiff'] ) )
+            {
+                // Process was already running previous collect time
+                $iJiff = $iJiff - $prevStatData[$pid]['thisJiff'];
+                $iJiff = max( 0, $iJiff ); // make sure it does not get negative
+            }
             $result[$uid][$procName]['jiff'] += $iJiff;
             $result[$uid][$procName]['time'] = $aProcInfo['time'];
 
@@ -498,11 +551,13 @@ class ProcStats
     }
 
     /**
-     * Get the details from /proc for one process ID.
+     * Get the details from /proc for one specific process ID.
+     * The data gets stored in $result.
      *
      * @param $pid integer - Process ID to get the data for.
+     * @param $result array - Reference to array to store results in. See comments on _collectProcStats function.
      */
-    private function _getProcInfo( $pid )
+    protected function _getProcInfo( $pid, &$result )
     {
         $procStatFile =   $this->_procPath.'/'.$pid.'/stat';
         $procStatusFile = $this->_procPath.'/'.$pid.'/status';
@@ -546,38 +601,38 @@ class ProcStats
                 // http://www.kernel.org/doc/man-pages/online/pages/man5/proc.5.html
                 // search for "/proc/[pid]/stat"
 
-                $name      = $statFields[1];
-                $name      = trim( $name, '()-0123456789/' );
-                $name      = preg_replace('/\/\d+$/','',$name);
+                $process      = $statFields[1];
+                $process      = trim( $process, ':()-0123456789/' );
+                $process      = preg_replace('/\/\d+$/','',$process);
                 $parentPid = $statFields[3];
 
-                if ( !isset( $this->_statData[$pid]['childPids'] ) )
+                if ( !isset( $result[$pid]['childPids'] ) )
                 {
-                    $this->_statData[$pid]['childPids'] = array();
+                    $result[$pid]['childPids'] = array();
                 }
-                $this->_statData[$pid]['pid']       = $pid;
-                $this->_statData[$pid]['name']      = $name;
-                $this->_statData[$pid]['parentPid'] = $parentPid;
+                $result[$pid]['pid']       = $pid;
+                $result[$pid]['name']      = $process;
+                $result[$pid]['parentPid'] = $parentPid;
                 if ( !empty($parentPid) ) {
-                    $this->_statData[$parentPid]['childPids'][] = $pid;
+                    $result[$parentPid]['childPids'][] = $pid;
                 }
 
-                $this->_statData[$pid]['uid']  = $uid;
+                $result[$pid]['uid']  = $uid;
 
-                $this->_statData[$pid]['thisJiff'] = 0;
-                $this->_statData[$pid]['thisJiff'] += $statFields[13]; // utime = user mode
-                $this->_statData[$pid]['thisJiff'] += $statFields[14]; // stime = kernel mode
+                $result[$pid]['thisJiff'] = 0;
+                $result[$pid]['thisJiff'] += $statFields[13]; // utime = user mode
+                $result[$pid]['thisJiff'] += $statFields[14]; // stime = kernel mode
 
-                $this->_statData[$pid]['deadChildJiff'] = 0;
-                $this->_statData[$pid]['deadChildJiff'] += $statFields[15]; // cutime = ended children user mode
-                $this->_statData[$pid]['deadChildJiff'] += $statFields[16]; // cstime = ended children kernel mode
+                $result[$pid]['deadChildJiff'] = 0;
+                $result[$pid]['deadChildJiff'] += $statFields[15]; // cutime = ended children user mode
+                $result[$pid]['deadChildJiff'] += $statFields[16]; // cstime = ended children kernel mode
 
-                $this->_statData[$pid]['time'] = $fMicroTime;
+                $result[$pid]['time'] = $fMicroTime;
 
                 unset($statFields);
                 unset($fMicroTime);
                 unset($uid);
-                unset($name);
+                unset($process);
                 unset($parentPid);
                 unset($pid);
             }
@@ -598,7 +653,7 @@ class ProcStats
      * @param int $uid - User ID to get username for
      * @return string  - Username
      */
-    function _uidToUser( $uid )
+    protected function _uidToUser( $uid )
     {
         if ( !isset($this->_uidcache[$uid]) )
         {
@@ -618,23 +673,26 @@ class ProcStats
     /**
      * Recursive function to print tree with process info, for debugging.
      *
+     * @param array $statData - Array received from _collectProcStats
      * @param int $pid   - Process Id to print info for
      * @param int $level - Nesting level
      */
-    function _debugTree( $pid=1, $level=0 )
+    protected function _debugTree( $statData, $pid=1, $level=0 )
     {
-        echo str_repeat(' ',$level*8);
-        echo $pid . ' - '.$this->_statData[$pid]['name'];
-        echo ' - '.$this->_uidToUser($this->_statData[$pid]['uid']);
-        echo ' | ';
-        echo $this->_statData[$pid]['thisJiff'];
-        echo ' / ';
-        echo $this->_statData[$pid]['deadChildJiff'];
-        echo "\n";
-        foreach ( $this->_statData[$pid]['childPids'] as $childPid )
+        $result = '';
+        $result .= str_repeat(' ',$level*8);
+        $result .= $pid . ' - '.$statData[$pid]['name'];
+        $result .= ' - '.$this->_uidToUser($statData[$pid]['uid']);
+        $result .= ' | ';
+        $result .= $statData[$pid]['thisJiff'];
+        $result .= ' / ';
+        $result .= $statData[$pid]['deadChildJiff'];
+        $result .= "\n";
+        foreach ( $statData[$pid]['childPids'] as $childPid )
         {
-            $this->_debugTree( $childPid, $level+1 );
+            $result .= $this->_debugTree( $statData, $childPid, $level+1 );
         }
+        return $result;
     }
 
     /**
@@ -643,7 +701,7 @@ class ProcStats
      * @param string $json
      * @return string
      */
-    private function _jsonIndent($json)
+    protected function _jsonIndent($json)
     {
         $result      = '';
         $pos         = 0;
@@ -694,12 +752,12 @@ class ProcStats
         return $result;
     }
 
-    function _userCmp($a, $b)
+    protected function _userCmp($a, $b)
     {
         return $b['TOTAL']['counter'] - $a['TOTAL']['counter'];
     }
 
-    function _userProcCmp($a, $b)
+    protected function _userProcCmp($a, $b)
     {
         return $b['counter'] - $a['counter'];
     }

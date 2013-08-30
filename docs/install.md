@@ -6,7 +6,7 @@ Install Required Packages
 
 Ubuntu:
 
-    apt-get -y install php5-cli php5-sqlite git-core
+    apt-get install php5-cli php5-sqlite git-core
 
 RedHat / CentOS:
 
@@ -16,6 +16,8 @@ Done.
 
 Install from BitBucket on Ubuntu
 --------------------------------
+
+apt-get install php5-cli php5-sqlite git-core
 
 mkdir -p /usr/share
 cd /usr/share
