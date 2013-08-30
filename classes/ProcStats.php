@@ -1,17 +1,19 @@
 <?php
 
 /**
+ * @author      Jeroen Vermeulen <info@jeroenvermeulen.eu>
+ *
  * Class ProcStats
  *
  * The daemon timer runs timerCollectStats every second.
  * The daemon timer runs timerWriteDatabase every 5 minutes, to backup data in case the daemon gets restarted.
  *
  * Functions to retrieve collected data:
- *   - getProcStats      - Returns an array, provides the data for the other data retrieving functions
- *   - getJsonProcStats
- *   - getCactiProcStats
- *   - getNagiosProcStats
- *   - getProcStatsDetailHtml
+ *   - getProcStats           - Returns an array, provides the data for the other data retrieving functions
+ *   - getJsonProcStats       - Returns a JSON string
+ *   - getCactiProcStats      - Returns "user1:NUMBER user2:NUMBER" string for Cacti
+ *   - getNagiosProcStats     - Returns "user1=NUMBER user2=NUMBER" string for Nagios
+ *   - getProcStatsDetailHtml - Returns a HTML layout detailed overview
  *
  */
 
