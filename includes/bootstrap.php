@@ -25,7 +25,7 @@ define('LOG_ROOT', realpath(APP_ROOT.'logs').DIRECTORY_SEPARATOR);
 // install autoloader
 function __autoloadHandler($className) {
     $file = str_replace('_', '/', $className) . '.php';
-    require_once(APP_ROOT . 'classes/' . $file);
+    require_once( APP_ROOT . 'classes/' . $file );
 }
 
 spl_autoload_register('__autoloadHandler');
@@ -54,7 +54,13 @@ pcntl_signal(SIGUSR1, "__signalHandler");
 pcntl_signal(SIGUSR2, "__signalHandler");
 
 // load configuration
-include APP_ROOT . 'includes/config.php';
+if ( file_exists( APP_ROOT . 'includes/config.php' ) ) {
+    require_once( APP_ROOT . 'includes/config.php' );
+} elseif ( file_exists( '/etc/clusterstat-daemon/config.php' ) ) {
+    require_once( '/etc/clusterstat-daemon/config.php' );
+} else {
+    throw new Exception( 'Configuration file not found' );
+}
 
 // sanity checks
 if(!is_writable(LOG_ROOT)) {
