@@ -662,7 +662,7 @@ class ProcStats
             $aUserInfo = posix_getpwuid($uid);
             if ( empty($aUserInfo['name']) )
             {
-                $this->_uidcache[$uid] =  '['.$uid.']';
+                $this->_uidcache[$uid] =  $uid;
             }
             else
             {
