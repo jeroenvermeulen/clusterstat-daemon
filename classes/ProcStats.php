@@ -11,7 +11,8 @@
  * Functions to retrieve collected data:
  *   - getProcStats           - Returns an array, provides the data for the other data retrieving functions
  *   - getJsonProcStats       - Returns a JSON string
- *   - getCactiProcStats      - Returns "user1:NUMBER user2:NUMBER" string for Cacti
+ *   - getCactiProcStats      - Returns "user1:NUMBER user2:NUMBER" string for Cacti, jiffies
+ *   - getCactiProcCount      - Returns "user1:NUMBER user2:NUMBER" string for Cacti, process count
  *   - getNagiosProcStats     - Returns "user1=NUMBER user2=NUMBER" string for Nagios
  *   - getProcStatsDetailHtml - Returns a HTML layout detailed overview
  *
@@ -27,7 +28,7 @@ class ProcStats
     protected $_statFifo     = array();
     protected $_statFifoLen  = 3;
     protected $_workDir      = null;
-    protected $_dbData       = null;
+    protected $_dbData       = null; // is filled by _getFromDatabase and timerCollectStats
 
     /**
      * Constructor - initialize some data.
@@ -67,6 +68,7 @@ class ProcStats
 
                     $result[$user]['TOTAL']['jiff']    = 0;
                     $result[$user]['TOTAL']['counter'] = 0;
+                    $result[$user]['TOTAL']['procs'] = 0;
 
                     if (  isset($startStats[$uid])
                        && is_array($startStats[$uid])
@@ -74,23 +76,26 @@ class ProcStats
                     {
                         foreach ( $this->_dbData[$uid] as $process => &$nil2 )
                         {
-                            if ( 10 < $this->_dbData[$uid][$process]['counter'] )
+                            $result[$user][$process]['jiff'] = 0;
+                            $result[$user][$process]['procs'] = 0;
+                            if (  !empty($startStats[$uid][$process]['jiff'])
+                               && !empty($endStats[$uid][$process]['jiff'])
+                               )
                             {
-                                $result[$user][$process]['jiff'] = 0;
-                                if (  !empty($startStats[$uid][$process]['jiff'])
-                                   && !empty($endStats[$uid][$process]['jiff'])
-                                   )
-                                {
-                                    $timeDiff = $endStats[$uid][$process]['time'] - $startStats[$uid][$process]['time'];
-                                    $diffJiff = $endStats[$uid][$process]['jiff'] - $startStats[$uid][$process]['jiff'];
-                                    $diffJiff = round( $diffJiff / $timeDiff );
-                                    $diffJiff = max( 0, $diffJiff );
-                                    $result[$user][$process]['jiff']    = max( 0, $diffJiff );
-                                    $result[$user]['TOTAL']['jiff']  += max( 0, $diffJiff );
-                                }
-                                $result[$user][$process]['counter'] = $this->_dbData[$uid][$process]['counter'];
-                                $result[$user]['TOTAL']['counter'] += $this->_dbData[$uid][$process]['counter'];
+                                $timeDiff = $endStats[$uid][$process]['time'] - $startStats[$uid][$process]['time'];
+                                $diffJiff = $endStats[$uid][$process]['jiff'] - $startStats[$uid][$process]['jiff'];
+                                $diffJiff = round( $diffJiff / $timeDiff );
+                                $diffJiff = max( 0, $diffJiff );
+                                $result[$user][$process]['jiff']  = $diffJiff;
+                                $result[$user]['TOTAL']['jiff']   += $diffJiff;
                             }
+                            if ( !empty($endStats[$uid][$process]['procs']) )
+                            {
+                                $result[$user][$process]['procs']   = $endStats[$uid][$process]['procs'];
+                                $result[$user]['TOTAL']['procs']    += $endStats[$uid][$process]['procs'];
+                            }
+                            $result[$user][$process]['counter'] = $this->_dbData[$uid][$process]['counter'];
+                            $result[$user]['TOTAL']['counter']  += $this->_dbData[$uid][$process]['counter'];
                         }
                         unset( $nil2 );
                     }
@@ -120,6 +125,27 @@ class ProcStats
             {
                 $result .= sprintf( '%s:%d ', $user, $stats[$user]['TOTAL']['counter'] );
                 $allTotal += $stats[$user]['TOTAL']['counter'];
+            }
+            $result .= sprintf( '%s:%d ', 'TOTAL', $allTotal );
+            unset($allTotal);
+            unset($users);
+        }
+        unset($stats);
+        return $result;
+    }
+
+    public function getCactiProcCount($path, $queryString)
+    {
+        $result = '';
+        $stats = $this->getProcStats();
+        if ( is_array($stats) )
+        {
+            $allTotal = 0;
+            $users = array_keys($stats);
+            foreach ( $users as $user )
+            {
+                $result .= sprintf( '%s:%d ', $user, $stats[$user]['TOTAL']['procs'] );
+                $allTotal += $stats[$user]['TOTAL']['procs'];
             }
             $result .= sprintf( '%s:%d ', 'TOTAL', $allTotal );
             unset($allTotal);
@@ -162,15 +188,23 @@ class ProcStats
         $result       = '';
         $result      .= '<table border="1" cellpadding="2" style="border-collapse:collapse; border-bottom:2px solid black;">'."\n";
         $result      .= '<tr>';
-        $result      .= '<th>user<br />process</th>';
-        $result      .= '<th colspan=2>current<br />jiff / sec</th>';
-        $result      .= '<th colspan=2>total<br />counter</th>';
+        $result      .= '<th>user</th>';
+        $result      .= '<th colspan=3>current</th>';
+        $result      .= '<th colspan=2>total</th>';
         $result      .= '</tr>'."\n";
+        $result      .= '<tr>';
+        $result      .= '<th>process</th>';
+        $result      .= '<th colspan=1>procs</th>';
+        $result      .= '<th colspan=2>jiff / sec</th>';
+        $result      .= '<th colspan=2>counter</th>';
+        $result      .= '</tr>'."\n";
+
         $stats        = $this->getProcStats();
         if ( is_array($stats) )
         {
             $counterTotal = 0;
             $jiffTotal    = 0;
+            $procsTotal   = 0;
             uasort( $stats, array($this,'_userCmp') );
             $users = array_keys($stats);
             foreach ( $users as $user )
@@ -181,10 +215,12 @@ class ProcStats
                 {
                     $counterTotal += $stats[$user]['TOTAL']['counter'];
                     $jiffTotal    += $stats[$user]['TOTAL']['jiff'];
+                    $procsTotal   += $stats[$user]['TOTAL']['procs'];
                 }
             }
             $stats['TOTAL']['TOTAL']['counter'] = $counterTotal;
             $stats['TOTAL']['TOTAL']['jiff']    = $jiffTotal;
+            $stats['TOTAL']['TOTAL']['procs']   = $procsTotal;
             $counterTotal = empty($counterTotal) ? 1 : $counterTotal;
             $jiffTotal    = empty($jiffTotal)    ? 1 : $jiffTotal;
             array_unshift( $users, 'TOTAL' );
@@ -205,6 +241,7 @@ class ProcStats
                         $counterPerc  = $counter * 100 / $counterTotal;
                         $jiff         = $stats[$user][$process]['jiff'];
                         $jiffPerc     = $jiff * 100 / $jiffTotal;
+                        $procs        = $stats[$user][$process]['procs'];
                         $style        = '';
                         $name         = $process;
                         if ( 'TOTAL' == $user )
@@ -218,6 +255,7 @@ class ProcStats
                         }
                         $result      .= sprintf( '<tr style="%s">', $style);
                         $result      .= sprintf( '<td>%s</td>', $name );
+                        $result      .= sprintf( '<td width="30" align="right">%d</td>', $procs );
                         if ( empty($jiff) )
                         {
                             $result      .= '<td width="30">&nbsp;</td>';
@@ -292,6 +330,7 @@ class ProcStats
                     $this->_dbData[$uid][$process]['linuxuser'] = $uid;
                     $this->_dbData[$uid][$process]['process']   = $process;
                     $this->_dbData[$uid][$process]['counter']   = $userProcStats[$uid][$process]['jiff'];
+                    $this->_dbData[$uid][$process]['procs']     = $userProcStats[$uid][$process]['procs'];
                 }
                 $this->_dbData[$uid][$process]['lastvalue'] = $userProcStats[$uid][$process]['jiff'] ;
                 $userProcStats[$uid][$process]['counter']   = $this->_dbData[$uid][$process]['counter'];
