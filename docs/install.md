@@ -19,15 +19,17 @@ RedHat / CentOS:
 
 Done.
 
-Install from BitBucket on Ubuntu
+Install from GitHub on Ubuntu
 --------------------------------
 
-apt-get install php5-cli php5-sqlite git-core
+    apt-get install php5-cli php5-sqlite git-core
 
-mkdir -p /usr/share
-cd /usr/share
-git clone git@bitbucket.org:jeroenvermeulen/clusterstat-daemon.git
-cp /usr/share/clusterstat-daemon/includes/config.php.dist /usr/share/clusterstat-daemon/includes/config.php
-ln -sfn /usr/share/clusterstat-daemon/clusterstatd /etc/init.d/clusterstatd
-update-rc.d clusterstatd defaults
-service clusterstatd start
+    mkdir -p /usr/share
+    cd /usr/share
+    git clone https://github.com/jeroenvermeulen/clusterstat-daemon.git
+    cp /usr/share/clusterstat-daemon/includes/config.php.dist /usr/share/clusterstat-daemon/includes/config.php
+    ln -sfn /usr/share/clusterstat-daemon/clusterstatd /etc/init.d/clusterstatd
+    update-rc.d clusterstatd defaults
+    service clusterstatd start
+    
+The default port is '8888', default user is 'stats', default password 'stats'.
