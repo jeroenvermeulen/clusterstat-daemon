@@ -7,4 +7,4 @@ Currently the main function of the daemon is counting used 'jiffies' by processe
 
 The counters can be requested in JSON, Cacti or Nagios format.
 
-For a quick start check docs/install.md
+For a quick start check [docs/install.md](https://github.com/jeroenvermeulen/clusterstat-daemon/blob/master/docs/install.md)
