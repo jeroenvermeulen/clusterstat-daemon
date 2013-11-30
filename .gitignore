@@ -1,8 +1,9 @@
+*~
 /.idea
 /SOURCES/*.tgz
 /BUILD/*
 /BUILDROOT/*
-*~
 /userstats.sqlite
-/logs/*.log
+/logs/*.log*
 /includes/config.php
+/includes/server.pem
