@@ -32,4 +32,4 @@ Install from GitHub on Ubuntu
     update-rc.d clusterstatd defaults
     service clusterstatd start
     
-The default port is '8888', default user is 'stats', default password 'stats'.
+The default port is `8888`, default user is `stats`, default password `stats`.
