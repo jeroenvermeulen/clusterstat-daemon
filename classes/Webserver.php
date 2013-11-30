@@ -1,10 +1,28 @@
 <?php
+/*
+Webserver.php - Pure (native) PHP web server implementation with SSL support
+Copyright (C) 2013  Bas Peters <bas@baspeters.com> & Jeroen Vermeulen <info@jeroenvermeulen.eu>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 /**
- * Pure (native) PHP webserver implementation with SSL support
+ * Pure (native) PHP web server implementation with SSL support
  *
- * @category    Webserver
- * @package     ClusterStatisticsDaemon
- * @author      Bas Peters <bas.peters@nedstars.nl>
+ * @category    Web Server
+ * @package     ClusterStatsDaemon
+ * @author      Bas Peters <bas@baspeters.com>
+ * @author      Jeroen Vermeulen <info@jeroenvermeulen.eu>
  */
 class Webserver {
     /**
@@ -45,12 +63,13 @@ class Webserver {
     }
 
     /**
-     * Registers a webserver controller to invoke when a specific url path is requested
-     * from the internal webserver
+     * Registers a web server controller to invoke when a specific url path is requested
+     * from the internal web server
      *
      * @param string $paths The url path or an array of paths
      * @param callback $callback The function or method to be called
      * @param string $contentType HTML content type
+     * @throws Exception
      */
     public function registerController($paths, $callback, $contentType = null) {
         if(!is_callable($callback)) {
@@ -79,7 +98,7 @@ class Webserver {
     }
 
     /**
-     * Sets the login credentials for the webserver
+     * Sets the login credentials for the web server
      *
      * @param string $username Username
      * @param string $password Password
@@ -90,9 +109,10 @@ class Webserver {
     }
 
     /**
-     * Sets the webroot location of the webserver
+     * Sets the webroot location of the web server
      *
      * @param string $webRoot The absolute location of the webroot
+     * @throws Exception
      */
     public function setRoot($webRoot) {
         if(!file_exists($webRoot)) {
@@ -114,7 +134,7 @@ class Webserver {
 
         socket_set_timeout($client,5);
 
-        // read header information of the connecting webbrowser
+        // read header information of the connecting web browser
 
         $startTime = microtime( true );
 
@@ -157,7 +177,7 @@ class Webserver {
             $responseEncoding = 'identity';
         }
 
-        // break down the location, querystring and set the correct content type
+        // break down the location, query string and set the correct content type
         $locationArray = explode('?',$location);
         $path = $locationArray[0];
         $extension =  strtolower(pathinfo($path, PATHINFO_EXTENSION));
@@ -232,7 +252,7 @@ class Webserver {
         // compile response headers
         $responseHeader[] = 'HTTP/1.1 200 OK';
         $responseHeader[] = 'Date: '.date(DATE_RFC822);
-        $responseHeader[] = 'Server: ClusterStatisticsDaemon';
+        $responseHeader[] = 'Server: ClusterStatsDaemon';
         $responseHeader[] = 'Connection: close';
         $responseHeader[] = 'Content-Type: '.$contentType;
         $responseHeader[] = 'Content-Length: '.strlen($responseBody);
@@ -261,7 +281,7 @@ class Webserver {
                 Log::info('Webserver SSL support is disabled');
             } elseif(!in_array('ssl',$transports)) {
                 Log::info('Warning: Webserver cannot use SSL. PHP is not configured to support it');
-            } elseif($this->_checkSslCertificate()) {
+            } elseif( $this->_checkSslCertificate() ) {
                 stream_context_set_option($context, 'ssl', 'local_cert', $this->_webserverPemFile);
                 stream_context_set_option($context, 'ssl', 'passphrase', Config::get('http_ssl_passphrase'));
                 stream_context_set_option($context, 'ssl', 'allow_self_signed', true);
@@ -296,19 +316,19 @@ class Webserver {
      */
     private function _checkSslCertificate() { //return false;
         try {
-            if(@file_exists($this->_webserverPemFile)) {
+            if ( @file_exists( $this->_webserverPemFile ) ) {
                 // certificate file was found, bail out
                 return true;
             }
             // certificate entities
             $dn = array(
-                "countryName" => "NL",
-                "stateOrProvinceName" => "Brabant",
-                "localityName" => "Eindhoven",
-                "organizationName" => "NedStars B.V.",
+                "countryName" => "BE",
+                "stateOrProvinceName" => "Antwerp",
+                "localityName" => "Retie",
+                "organizationName" => "Jeroen Vermeulen BVBA",
                 "organizationalUnitName" => "Application Development",
-                "commonName" => "Development",
-                "emailAddress" => "development@nedstars.nl"
+                "commonName" => "ClusterStats",
+                "emailAddress" => "info@jeroenvermeulen.eu"
             );
 
             // generate certificate
@@ -328,7 +348,7 @@ class Webserver {
     }
 
     /**
-     * Checks if the webclient credentials are valid
+     * Checks if the web client credentials are valid
      *
      * @param string $requestHeader The complete HTTP request header
      * @return bool Authentication was successful
@@ -384,9 +404,10 @@ class Webserver {
     }
 
     /**
-     * Sends a 403 forbidden to the webclient
+     * Sends a 403 forbidden to the web client
      *
-     * @param resource $client The client webbrowser socket
+     * @param resource $client - The client web browser socket
+     * @param string   $path   - Path the visitor tried to access
      */
     private function _clientSendForbidden($client, $path) {
         $responseBody[] = '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">';
@@ -411,9 +432,10 @@ class Webserver {
     }
 
     /**
-     * Sends a 404 not found to the webclient
+     * Sends a 404 not found to the web client
      *
-     * @param resource $client The client webbrowser socket
+     * @param resource $client - The client web browser socket
+     * @param string   $path   - Path the visitor tried to access
      */
     private function _clientSendNotFound($client, $path) {
         $responseBody[] = '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">';
@@ -470,5 +492,3 @@ class Webserver {
         fclose($client);
     }
 }
-
-?>

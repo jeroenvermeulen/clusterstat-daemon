@@ -1,98 +1,43 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html lang="en">
 <head>
-	<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
-	<title>ClusterStatDaemon</title>
-	<script src="jquery-1.8.2.min.js"></script>
+    <!--
+    ClusterStats Daemon - Gathering statistics about server cluster usage.
+    Copyright (C) 2013  Bas Peters <bas@baspeters.com> & Jeroen Vermeulen <info@jeroenvermeulen.eu>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    -->
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <title>ClusterStatDaemon</title>
+    <link rel="stylesheet" type="text/css" href="style.css" media="all" />
+    <script src="jquery-1.8.2.min.js"></script>
     <script type="text/javascript" src="highcharts.js"></script>
     <script type="text/javascript" src="highcharts_exporting.js"></script>
     <script type="text/javascript" src="procstats.js"></script>
-    <script type="text/javascript">
-		$.ajaxSetup({ cache: false });
-		/**
-		 * Performs a JSON data update and refreshes the UI inline with runtime statistics
-		 */
-		function updateRuntimeStats() {
-			// perform JSON request to get updated statistics
-			$.getJSON('runtimestats.js', function(data) {
-				$('#main_memory_usage').html(data.memory_usage);
-				$('#main_uptime').html(data.uptime);
-				$('#main_load').html(data.load);
-				$('#main_dispatchers').html(data.dispatchers);
-			});
-
-			// schedule a new timeslot to update
-		    window.setTimeout(updateRuntimeStats, 2000);
-		}
-
-		/**
-		 * Run the timed update to update the UI with new statistics from the backend
-		 */
-		$(document).ready(function(){
-			updateRuntimeStats();
-		});
-	</script>
-	<style type="text/css">
-		body {
-			margin:0px;
-			padding: 0px;
-			font-family: Verdana, Geneva, sans-serif;
-			font-size: 14px;
-		}
-		#header {
-			width: inherit;
-			height: 60px;
-			padding-left: 5px;
-			background: #333 url(nedstars_asterisk.png) no-repeat 12px 5px;
-			line-height: 60px;
-			text-indent: 60px;
-			overflow: hidden;
-			color: #ffffff;
-			font-size: 25px;
-		}
-		#runtime {
-			width: inherit;
-			height: auto;
-			padding: 3px 15px 6px 15px;
-			background: #1c0a49;
-			color: #ffffff;
-			text-align: left;
-			font-size: 14px;
-			margin-bottom: 10px;
-		}
-		#runtime span {
-			font-weight: bold;
-			padding-right: 30px;
-		}
-		#subheader {
-			width: inherit;
-			height: auto;
-			padding: 10px 15px 15px 15px;
-			background: #c5c5c5;
-		}
-		#subheader td {
-			vertical-align: top;
-		}
-		#subheader td.label {
-			width: 200px;
-			font-weight: bold;
-		}
-		#contents {
-			margin: 4px 15px 0px 15px;
-		}
-	</style>
+    <script type="text/javascript" src="javascript.js"></script>
 </head>
 <body>
-	<div id="header">ClusterStatDaemon</div>
-	<div id="subheader">
-		This process is responsible for collecting cluster application server customer metrics
-	</div>
-	<div id="runtime">
-		Memory Used by Daemon: <span id="main_memory_usage">{$runtimestats.memory_usage}</span>
-		Daemon Uptime: <span id="main_uptime">{$runtimestats.uptime}</span>
-		Server Load: <span id="main_load">{$runtimestats.load}</span>
-	</div>
-	<div id="contents">
+    <div id="header">ClusterStatDaemon</div>
+    <div id="subheader">
+        This process is responsible for collecting cluster application server customer metrics
+    </div>
+    <div id="runtime">
+        Memory Used by Daemon: <span id="main_memory_usage">{$runtimestats.memory_usage}</span>
+        Daemon Uptime: <span id="main_uptime">{$runtimestats.uptime}</span>
+        Server Load: <span id="main_load">{$runtimestats.load}</span>
+    </div>
+    <div id="contents">
         <div id="container" style="min-width: 400px; height: 300px; margin: 0 auto"></div>
 
         <table border="1" style="border-collapse: collapse; font-size: 11px;" cellpadding="2">
@@ -109,8 +54,7 @@
             </tr>
         {/foreach}
             <table>
-
-	</div>
+    </div>
     <p><br /><a href="/procstats_detail_html" target="_blank">Details about processes</a></p>
 </body>
 </html>

@@ -1,17 +1,34 @@
 <?php
+/*
+Log.php - Logging class
+Copyright (C) 2013  Bas Peters <bas@baspeters.com>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 /**
  * Logging class
  *
  * @category    Logging
- * @package     ClusterStatisticsDaemon
- * @author      Bas Peters <bas.peters@nedstars.nl>
+ * @package     ClusterStatsDaemon
+ * @author      Bas Peters <bas@baspeters.com>
  */
 class Log {
     /**
      * Class constants
      */
     const MAX_LOGFILE_REVISIONS = 5;
-    
+
     /**
      * Private properties
      */
@@ -20,19 +37,19 @@ class Log {
     private static $_stdErr = null;
     private static $_logDoty = null;
     private static $_logClientPidCallback = null;
-    
+
     /**
      * Sets the name of the current module that uses the log
-     * 
+     *
      * @param string $module Module name
      */
     public static function setModule($module) {
         self::$_module = $module;
     }
-    
+
     /**
      * Logs an information line
-     * 
+     *
      * @param string $line The log line
      * @return string Formatted log line that was written to the log
      */
@@ -42,10 +59,10 @@ class Log {
         }
         return self::_writeMessage($line, self::$_stdOut);
     }
-    
+
     /**
      * Logs an error line
-     * 
+     *
      * @param string $line The log line
      * @return string Formatted log line as written to the log
      */
@@ -55,11 +72,12 @@ class Log {
         }
         return self::_writeMessage($line, self::$_stdErr);
     }
-    
+
     /**
-     * Registers a callback function to retrieve pids from processes that log into the logfiles
-     * 
-     * @param callback $callback The callback function to retrieve the pidlist
+     * Registers a callback function to retrieve process ids from processes that log into the log files
+     *
+     * @param callback $callback The callback function to retrieve the pid list
+     * @throws Exception
      */
     public static function registerLogClientPidsCallback($callback) {
         if(!is_callable($callback)) {
@@ -67,10 +85,9 @@ class Log {
         } elseif(!is_null(self::$_logClientPidCallback)) {
             throw new Exception('Log client PID Callback function is already registered');
         }
-        
         self::$_logClientPidCallback = $callback;
     }
-    
+
     /**
      * Executed after the logs are rotated and will close and reopen the log file descriptors
      */
@@ -80,7 +97,7 @@ class Log {
         fclose(self::$_stdErr);
         self::_checkFileDescriptors();
     }
-    
+
     /**
      * Method to rotate the logfiles at midnight local time
      */
@@ -90,12 +107,12 @@ class Log {
             // if the log root path is not known, bail out
             return;
         }
-        
+
         // if the day of the year was not previously set, define it now
         if(is_null(self::$_logDoty)) {
             self::$_logDoty = date('z');
         }
-        
+
         // check if there was a date change
         if(date('z')==self::$_logDoty) {
             // no date change detected, the log rotate should not be executed
@@ -104,13 +121,13 @@ class Log {
             // update the date change
             self::$_logDoty = date('z');
         }
-        
+
         self::info('Rotating the logfiles');
-        
+
         // gather information about the current logfiles
         $allFiles = @scandir(LOG_ROOT, 1);
         if($allFiles===false) return;
-        
+
         $logFiles = array();
         foreach($allFiles as $file) {
             preg_match('/^((?P<filename>(.*?)\.log(\.?(?P<revision>\d+))?))$/', $file, $matches);
@@ -121,7 +138,7 @@ class Log {
                 );
             }
         }
-        
+
         // increase the revision numbers of each logfile
         foreach($logFiles as $logFile) {
             if($logFile['revision'] >= self::MAX_LOGFILE_REVISIONS) {
@@ -133,10 +150,10 @@ class Log {
                 @rename(LOG_ROOT.$logFile['filename'], LOG_ROOT.$logFile['filename'].'.1');
             }
         }
-        
+
         self::postRotate();
-        
-        // notify all logclients to reopen the file descriptors
+
+        // notify all log clients to reopen the file descriptors
         $logClientPids = array();
         if(!is_null(self::$_logClientPidCallback)) {
             $logClientPids = call_user_func(self::$_logClientPidCallback);
@@ -147,7 +164,7 @@ class Log {
             }
         }
     }
-    
+
     /**
      * Checks if the logging file descriptors are correctly set
      */
@@ -166,10 +183,10 @@ class Log {
             if(!is_resource(self::$_stdErr)) self::$_stdErr = fopen('/dev/null', 'ab');
         }
     }
-    
+
     /**
      * Low level function that performs the actual log write
-     * 
+     *
      * @param string $line The line to be logged
      * @param resource $fd File descriptor where the logging needs to be written
      * @return string Formatted log line as written to the log
@@ -177,8 +194,7 @@ class Log {
     private static function _writeMessage($line, $fd) {
         $line = date('Y-m-d H:i:s')."  ".(is_null(self::$_module) ? '' : '['.self::$_module.'] ')."$line".PHP_EOL;
         fwrite($fd, $line);
-        
+
         return $line;
     }
 }
-?>

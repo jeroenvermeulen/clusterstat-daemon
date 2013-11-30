@@ -1,10 +1,28 @@
 <?php
+/*
+bootstrap.php - Main bootstrap for this application
+Copyright (C) 2013  Bas Peters <bas@baspeters.com> & Jeroen Vermeulen <info@jeroenvermeulen.eu>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 /**
  * Main bootstrap for this application
  *
  * @category    Configuration
- * @package     ClusterStatisticsDaemon
- * @author      Bas Peters <bas.peters@nedstars.nl>
+ * @package     ClusterStatsDaemon
+ * @author      Bas Peters <bas@baspeters.com>
+ * @author      Jeroen Vermeulen <info@jeroenvermeulen.eu>
  */
 date_default_timezone_set('Europe/Amsterdam');
 
@@ -68,5 +86,3 @@ if(!is_writable(LOG_ROOT)) {
 } elseif((file_exists(Config::get('log_application')) && !is_writable(Config::get('log_application'))) || (file_exists(Config::get('log_error')) && !is_writable(Config::get('log_error')))) {
     throw new Exception('Logfiles are not writable');
 }
-
-?>

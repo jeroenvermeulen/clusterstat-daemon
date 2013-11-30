@@ -1,10 +1,28 @@
 <?php
+/*
+config.php - Main configuration file
+Copyright (C) 2013  Bas Peters <bas@baspeters.com> & Jeroen Vermeulen <info@jeroenvermeulen.eu>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 /**
- * Main configuration file
+ * Main configuration file, copy this file to "config.php", and update details below.
  *
  * @category    Config
- * @package     ClusterStatisticsDaemon
- * @author      Bas Peters <bas.peters@nedstars.nl>
+ * @package     ClusterStatsDaemon
+ * @author      Bas Peters <bas@baspeters.com>
+ * @author      Jeroen Vermeulen <info@jeroenvermeulen.eu>
  */
 
 // location of log files
@@ -14,7 +32,7 @@ Config::set('log_error',           LOG_ROOT . 'error.log');
 // Webserver settings
 Config::set('http_port',           8888);
 Config::set('http_username',       'stats');
-Config::set('http_password',       '1TJt9Vo3PVrqmrb');
+Config::set('http_password',       '##password##');
 
 Config::set('http_ssl_enabled',    false);
 Config::set('http_ssl_passphrase', 'Jesus saith unto him, I am the way, the truth, and the life');

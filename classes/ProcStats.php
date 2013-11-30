@@ -1,6 +1,24 @@
 <?php
+/*
+ProcStats.php - Class for gathering process statistics
+Copyright (C) 2013  Jeroen Vermeulen <info@jeroenvermeulen.eu>
 
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 /**
+ * @category    Statistics
+ * @package     ClusterStatsDaemon
  * @author      Jeroen Vermeulen <info@jeroenvermeulen.eu>
  *
  * Class ProcStats
@@ -8,22 +26,21 @@
  * The daemon timer runs timerCollectStats every second.
  * The daemon timer runs timerWriteDatabase every 5 minutes, to backup data in case the daemon gets restarted.
  *
- * Functions to retrieve collected data:
+ * Functions to retrieve collected process statistics data:
  *   - getProcStats           - Returns an array, provides the data for the other data retrieving functions
- *   - getJsonProcStats       - Returns a JSON string
+ *   - getJsonProcStats       - Returns JSON string
  *   - getCactiProcStats      - Returns "user1:NUMBER user2:NUMBER" string for Cacti, jiffies
  *   - getCactiProcCount      - Returns "user1:NUMBER user2:NUMBER" string for Cacti, process count
  *   - getNagiosProcStats     - Returns "user1=NUMBER user2=NUMBER" string for Nagios
  *   - getProcStatsDetailHtml - Returns a HTML layout detailed overview
  *
  */
+class ProcStats {
 
-class ProcStats
-{
     protected $_procPath     = '/proc';
     protected $_prevStatData = array();
     protected $_database     = null;
-    protected $_uidcache     = array();
+    protected $_uidCache     = array();
     protected $_sqliteFile   = 'userstats.sqlite';
     protected $_statFifo     = array();
     protected $_statFifoLen  = 3;
@@ -32,6 +49,8 @@ class ProcStats
 
     /**
      * Constructor - initialize some data.
+     *
+     * @return ProcStats
      */
     public function __construct()
     {
@@ -48,7 +67,7 @@ class ProcStats
     }
 
     /**
-     * Returns an array with process statitics
+     * Returns an array, provides the data for the other data retrieving functions
      *
      * @return array Process statistics.
      */
@@ -107,13 +126,27 @@ class ProcStats
         return $result;
     }
 
-    public function getJsonProcStats($path, $queryString)
+    /**
+     * Returns JSON encoded process statistics
+     *
+     * @param $path        - not used
+     * @param $queryString - not used
+     * @return string - JSON encoded process statistics
+     */
+    public function getJsonProcStats( /** @noinspection PhpUnusedParameterInspection */ $path, $queryString )
     {
         //return $this->_jsonIndent( json_encode($result) );
         return json_encode($this->getProcStats());
     }
 
-    public function getCactiProcStats($path, $queryString)
+    /**
+     * Returns "user1:NUMBER user2:NUMBER" string for Cacti, jiffies
+     *
+     * @param $path        - not used
+     * @param $queryString - not used
+     * @return string - data about used jiffies per user for Cacti
+     */
+    public function getCactiProcStats( /** @noinspection PhpUnusedParameterInspection */ $path, $queryString )
     {
         $result = '';
         $stats = $this->getProcStats();
@@ -134,7 +167,14 @@ class ProcStats
         return $result;
     }
 
-    public function getCactiProcCount($path, $queryString)
+    /**
+     * Returns "user1:NUMBER user2:NUMBER" string for Cacti, process count
+     *
+     * @param $path
+     * @param $queryString
+     * @return string - data about number of processes per user for Cacti
+     */
+    public function getCactiProcCount( /** @noinspection PhpUnusedParameterInspection */ $path, $queryString )
     {
         $result = '';
         $stats = $this->getProcStats();
@@ -155,7 +195,14 @@ class ProcStats
         return $result;
     }
 
-    public function getNagiosProcStats($path, $queryString)
+    /**
+     * Returns "user1=NUMBER user2=NUMBER" string for Nagios
+     *
+     * @param $path
+     * @param $queryString
+     * @return string, data about used jiffies per user for Nagios
+     */
+    public function getNagiosProcStats( /** @noinspection PhpUnusedParameterInspection */ $path, $queryString )
     {
         $result = '';
         $stats = $this->getProcStats();
@@ -183,7 +230,14 @@ class ProcStats
         return $result;
     }
 
-    public function getProcStatsDetailHtml($path, $queryString)
+    /**
+     * Returns a HTML layout detailed overview
+     *
+     * @param $path        - not used
+     * @param $queryString - not used
+     * @return string - HTML for detailed overview
+     */
+    public function getProcStatsDetailHtml( /** @noinspection PhpUnusedParameterInspection */ $path, $queryString )
     {
         $result       = '';
         $result      .= '<table border="1" cellpadding="2" style="border-collapse:collapse; border-bottom:2px solid black;">'."\n";
@@ -306,7 +360,7 @@ class ProcStats
     public function timerCollectStats()
     {
         $statData = $this->_collectProcStats();
-        //echo $this->_debugTree( $statData );
+        //echo $this->_debugTree( $statData ); // Useful for debugging, outputs to log
 
         $userProcStats = $this->_getUserProcStats( $statData, $this->_prevStatData );
         $this->_prevStatData = $statData;
@@ -317,9 +371,7 @@ class ProcStats
             {
                 if (  isset( $this->_dbData[$uid][$process]['counter'] ) )
                 {
-                    // Delta mechanism is moved to _getUserProcStats.
-                    //$delta = $userProcStats[$user][$process]['jiff'] - $this->_dbData[$user][$process]['lastvalue'];
-                    //$delta = max( 0, $delta );
+                    // Delta mechanism takes place in _getUserProcStats.
                     // Previous data found in database
                     $this->_dbData[$uid][$process]['counter'] += $userProcStats[$uid][$process]['jiff'];
                     unset($delta);
@@ -350,7 +402,14 @@ class ProcStats
         unset($userProcStats);
     }
 
-    public function debugTree($path, $queryString)
+    /**
+     * Outputs a tree useful for debugging
+     *
+     * @param $path        - not used
+     * @param $queryString - not used
+     * @return string - ascii art tree with collected process information
+     */
+    public function debugTree( /** @noinspection PhpUnusedParameterInspection */ $path, $queryString )
     {
         $statData = $this->_collectProcStats();
         return $this->_debugTree( $statData );
@@ -367,6 +426,7 @@ class ProcStats
     /**
      * Get an SQLite database connection
      *
+     * @throws Exception
      * @return PDO
      */
     protected function _getDatabase()
@@ -513,7 +573,7 @@ class ProcStats
      * This means data is collected for all current running processes.
      *
      * @throws Exception
-     * @return $result - Array on the form of:
+     * @return Array $result - in the form of:
      *                        $result[ PID ][ 'pid' ]           = Integer
      *                        $result[ PID ][ 'name' ]          = String
      *                        $result[ PID ][ 'parentPid' ]     = Integer
@@ -606,15 +666,13 @@ class ProcStats
         try
         {
             $uid          = null;
-
-            // $statusdata = file_get_contents( $procStatusFile );
-            $fh = fopen($procStatusFile, 'r');
-            $statusdata = fread($fh, 4096);
+            $fh           = fopen($procStatusFile, 'r');
+            $statusData   = fread($fh, 4096);
             fclose($fh);
             unset($fh);
 
             $match = array();
-            if ( preg_match( '/Uid:\s*\d+\s*(\d+)/', $statusdata, $match ) )
+            if ( preg_match( '/Uid:\s*\d+\s*(\d+)/', $statusData, $match ) )
             {
                 // Info about the '/proc/PID/status' fields:
                 // http://www.kernel.org/doc/man-pages/online/pages/man5/proc.5.html
@@ -712,11 +770,12 @@ class ProcStats
     }
 
     /**
-     * Recursive function to print tree with process info, for debugging.
+     * Recursive function to print ascii art tree with process info, for debugging.
      *
      * @param array $statData - Array received from _collectProcStats
-     * @param int $pid   - Process Id to print info for
-     * @param int $level - Nesting level
+     * @param int $pid        - Process Id to print info for
+     * @param int $level      - Nesting level
+     * @return string - ascii art tree with collected process info
      */
     protected function _debugTree( $statData, $pid=1, $level=0 )
     {
@@ -793,11 +852,25 @@ class ProcStats
         return $result;
     }
 
+    /**
+     * Function to compare the total counters of two users
+     *
+     * @param array $a
+     * @param array $b
+     * @return integer
+     */
     protected function _userCmp($a, $b)
     {
         return $b['TOTAL']['counter'] - $a['TOTAL']['counter'];
     }
 
+    /**
+     * Function to compare the counters of two processes
+     *
+     * @param array $a
+     * @param array $b
+     * @return integer
+     */
     protected function _userProcCmp($a, $b)
     {
         return $b['counter'] - $a['counter'];

@@ -24,8 +24,26 @@ Enable init script on Red Hat and CentOS:
   service clusterstatd start
 
 */
+/*
+clusterstatd - Main executable for the ClusterStat Daemon
+Copyright (C) 2013  Bas Peters <bas@baspeters.com> & Jeroen Vermeulen <info@jeroenvermeulen.eu>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 /**
- * @author Bas Peters       <bas.peters@nedstars.nl>
+ * @package     ClusterStatsDaemon
+ * @author Bas Peters       <bas@baspeters.com>
  * @author Jeroen Vermeulen <info@jeroenvermeulen.eu>
  */
 try {
@@ -64,7 +82,7 @@ try {
     $timer->register(array($procstats,'timerWriteDatabase'), 300, false);
 
     // enter main application loop
-    for(;;) {
+    while( true ) {
         $webserver->handleClients(250000);
 
         // dispatch pending timer and system signals
