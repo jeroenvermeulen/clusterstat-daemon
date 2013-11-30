@@ -327,7 +327,7 @@ class Webserver {
                 "localityName" => "Retie",
                 "organizationName" => "Jeroen Vermeulen BVBA",
                 "organizationalUnitName" => "Application Development",
-                "commonName" => "ClusterStats",
+                "commonName" => "clusterstats.jeroenvermeulen.eu",
                 "emailAddress" => "info@jeroenvermeulen.eu"
             );
 
