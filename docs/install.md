@@ -1,7 +1,7 @@
-ClusterStats  Copyright (C) 2013 Bas Peters & Jeroen Vermeulen
-This program comes with ABSOLUTELY NO WARRANTY;
-This is free software, and you are welcome to redistribute it under certain conditions;
-Licence: GNU General Public License v3.0. More info: <http://www.gnu.org/licenses/>
+    ClusterStats  Copyright (C) 2013 Bas Peters & Jeroen Vermeulen
+    This program comes with ABSOLUTELY NO WARRANTY;
+    This is free software, and you are welcome to redistribute it under certain conditions;
+    Licence: GNU General Public License v3.0. More info: http://www.gnu.org/licenses/
 
 Ubuntu
 ------
