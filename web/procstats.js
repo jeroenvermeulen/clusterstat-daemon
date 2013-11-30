@@ -31,21 +31,13 @@ jQuery(function () {
             if ( 'TOTAL' != user ) {
                 for ( var proc in procStats[ user ] )
                 {
-                    if (
-//                         (    ('TOTAL' != proc && 'root' != user)
-//                           || ('TOTAL' == proc && 'root' == user)
-//                         )
-//                         'TOTAL' != proc
-                           'TOTAL' == proc
+                    if (    'TOTAL' == proc
                          && 'undefined' != typeof procStats[ user ][proc]
                          && 'undefined' != typeof procStats[ user ][proc]['counter']
-//                         &&  2000 < procStats[user][proc]['counter']
                        ) {
                         userProcs[userProcNr] = { user: user, proc: proc };
                         var val               = procStats[ user ][proc]['jiff'];
-                        //var name              = user+' - '+proc;
-                        var name              = user;
-                        series[userProcNr]    = { name: name, data: [{ x: nowTimeMilli, y: val }] };
+                        series[userProcNr]    = { name: user, data: [{ x: nowTimeMilli, y: val }] };
                         userProcNr++;
                     }
                 }
@@ -91,7 +83,7 @@ jQuery(function () {
             },
             tooltip: {
                 formatter: function() {
-                    return '<b>'+ this.series.name +'</b><br/>'+
+                    return '<strong>'+ this.series.name +'</strong><br/>'+
                         Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) +'<br/>'+
                         'Jiffies: ' + Highcharts.numberFormat(this.y, 2);
                 }
@@ -133,6 +125,7 @@ jQuery(function () {
     }
 
     function updateChart() {
+        //noinspection JSUnusedLocalSymbols
         jQuery.ajax({
             url: 'procstats_json',
             timeout: 15000,
@@ -144,6 +137,7 @@ jQuery(function () {
         });
     }
 
+    //noinspection JSUnusedLocalSymbols
     function updateCallBack( data, stat, req )
     {
         if ( 'undefined' == typeof data ) {
@@ -165,7 +159,7 @@ jQuery(function () {
                     jQuery('#'+user+'_jiff').html( data[ user ][proc]['jiff'] );
                     jQuery('#'+user+'_counter').html( data[ user ][proc]['counter'] );
                 }
-            };
+            }
             window.setTimeout( updateChart, 1000 );
         }
     }

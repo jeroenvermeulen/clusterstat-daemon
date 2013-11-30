@@ -53,7 +53,7 @@ class ClusterStats {
      * @return String Html contents of the homepage
      */
     public function homepage($path, $queryString) {
-        $template = new HtmlTemplate('index.tpl');
+        $template = new HtmlTemplate('index.html');
         $template->setVar('runtimestats', $this->_collectRuntimeStats());
         $template->setVar('procstats', $this->_procStats->getProcStats($path, $queryString) );
         return $template->parse();

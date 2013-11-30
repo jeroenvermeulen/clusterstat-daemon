@@ -28,8 +28,9 @@ date_default_timezone_set('Europe/Amsterdam');
 
 // install exception error handler
 function __errorHandler($errorNumber, $errorString, $errorFile, $errorLine) {
-    if (!(error_reporting() & $errorNumber)) return;
+    if ( !(error_reporting() & $errorNumber) ) return null;
     throw new Exception($errorString.' ('.basename($errorFile).":{$errorLine})");
+    /** @noinspection PhpUnreachableStatementInspection */
     return true;
 }
 

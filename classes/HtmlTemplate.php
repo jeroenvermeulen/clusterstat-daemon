@@ -92,9 +92,10 @@ class HtmlTemplate {
      * @return string Pretty printed memory size
      */
     public static function prettyPrintMemorySize($size) {
-        if($size==0) return '-';
-        $unit=array('B','Kb','Mb','Gb','Tb','Pb');
-        return @round($size/pow(1024,($i=floor(log($size,1024)))),2).' '.$unit[$i];
+        if ( $size == 0 ) return '-';
+        $unit = array('B','Kb','Mb','Gb','Tb','Pb');
+        $i = intval( floor( log( $size, 1024 ) ) );
+        return @round( $size / pow( 1024, $i ), 2 ) . ' ' . $unit[$i];
     }
 
     /**

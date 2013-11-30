@@ -16,8 +16,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 body {
-    margin: 0px;
-    padding: 0px;
+    margin: 0;
+    padding: 0;
     font-family: Verdana, Geneva, sans-serif;
     font-size: 14px;
 }
@@ -60,5 +60,5 @@ body {
     font-weight: bold;
 }
 #contents {
-    margin: 4px 15px 0px 15px;
+    margin: 4px 15px 0 15px;
 }

@@ -754,19 +754,19 @@ class ProcStats {
      */
     protected function _uidToUser( $uid )
     {
-        if ( !isset($this->_uidcache[$uid]) )
+        if ( !isset($this->_uidCache[$uid]) )
         {
             $aUserInfo = posix_getpwuid($uid);
             if ( empty($aUserInfo['name']) )
             {
-                $this->_uidcache[$uid] =  $uid;
+                $this->_uidCache[$uid] =  $uid;
             }
             else
             {
-                $this->_uidcache[$uid] = $aUserInfo['name'];
+                $this->_uidCache[$uid] = $aUserInfo['name'];
             }
         }
-        return $this->_uidcache[$uid];
+        return $this->_uidCache[$uid];
     }
 
     /**

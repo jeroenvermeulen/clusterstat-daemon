@@ -33,9 +33,12 @@ class Timer {
 
     /**
      * Register a new timer
+     *
      * @param callback $callback The function to be called
      * @param float $timeout Timeout interval in seconds
      * @param bool $startExpired Should the last timeout be expired when registering
+     * @throws Exception
+     *
      * @return void
      */
     public static function register($callback, $timeout, $startExpired = false) {
