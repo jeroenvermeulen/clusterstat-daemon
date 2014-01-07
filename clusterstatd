@@ -87,7 +87,12 @@ try {
 
         // dispatch pending timer and system signals
         $timer->checkTimers();
-        pcntl_signal_dispatch();
+
+        if ( PHP_VERSION_ID >= 50300 ) {
+            pcntl_signal_dispatch();
+        } else {
+            usleep( 100000 ); // 0.1 sec
+        }
     }
 } catch(Exception $e) {
     Log::error('Fatal '.get_class($e).': '.$e->getMessage());

@@ -41,6 +41,11 @@ ini_set('display_errors', 0);
 define('APP_ROOT', realpath(dirname(__FILE__).DIRECTORY_SEPARATOR.'..').DIRECTORY_SEPARATOR);
 define('LOG_ROOT', realpath(APP_ROOT.'logs').DIRECTORY_SEPARATOR);
 
+if (!defined('PHP_VERSION_ID')) { // Not set in PHP < 5.2.7
+    $version = explode('.', PHP_VERSION);
+    define('PHP_VERSION_ID', ($version[0] * 10000 + $version[1] * 100 + $version[2])); // Example: 50206 for PHP 5.2.6
+}
+
 // install autoloader
 function __autoloadHandler($className) {
     $file = str_replace('_', '/', $className) . '.php';
