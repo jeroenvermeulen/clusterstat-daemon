@@ -292,7 +292,7 @@ class Webserver {
                 Log::info('Warning: Webserver cannot use SSL. Make sure the webroot is configured and server.pem exists');
             }
 
-            $port = Config::get('http_port') ?: 8888;
+            $port = Config::get('http_port') ? Config::get('http_port') : 8888;
             $this->_webserverSocket = @stream_socket_server("{$protocol}0.0.0.0:{$port}", $errno, $errstr, STREAM_SERVER_BIND|STREAM_SERVER_LISTEN, $context);
 
             if($this->_webserverSocket===FALSE) {
