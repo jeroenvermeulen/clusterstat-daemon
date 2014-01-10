@@ -47,7 +47,7 @@ if (!defined('PHP_VERSION_ID')) { // Not set in PHP < 5.2.7
 }
 
 if ( PHP_VERSION_ID >= 50300 ) {
-    declare(ticks = 1); // Make older PHP handle messages without pcntl_signal_dispatch()
+    declare(ticks = 50); // Make older PHP handle messages without pcntl_signal_dispatch()
 }
 
 // install autoloader

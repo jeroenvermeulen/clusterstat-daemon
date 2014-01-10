@@ -90,8 +90,6 @@ try {
 
         if ( PHP_VERSION_ID >= 50300 ) {
             pcntl_signal_dispatch();
-        } else {
-            usleep( 100000 ); // 0.1 sec
         }
     }
 } catch(Exception $e) {
