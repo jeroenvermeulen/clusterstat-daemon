@@ -3,7 +3,8 @@
     This is free software, and you are welcome to redistribute it under certain conditions;
     Licence: GNU General Public License v3.0. More info: http://www.gnu.org/licenses/
 
-**The default port is `8888`, default user is `stats`, default password `stats`.**
+
+The default port is `8888`, default user is `stats`, default password `stats`.
 
 Install from GitHub on Ubuntu
 -----------------------------
