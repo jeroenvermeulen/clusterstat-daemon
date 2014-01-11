@@ -244,17 +244,21 @@ class ProcStats {
             $allTotal = 0;
             foreach ( $users as $user )
             {
+                $fieldName = $user;
+                if ( 'root' == $fieldName ) {
+                    $fieldName = 'uroot';
+                }
                 if ( isset($stats[$user]['TOTAL']['counter']) )
                 {
                     $value     = $stats[$user]['TOTAL']['counter'];
                     if ( $value > 100 ) {
                         if ( 'config' == $requestInfo['QUERY_STRING'] ) {
-                            $result   .= sprintf( "%s.label %s\n", $user, $user );
-                            $result   .= sprintf( "%s.type DERIVE\n", $user );
-                            $result   .= sprintf( "%s.min 0\n", $user );
-                            $result   .= sprintf( "%s.draw LINE1\n", $user );
+                            $result   .= sprintf( "%s.label %s\n", $fieldName, $user );
+                            $result   .= sprintf( "%s.type DERIVE\n", $fieldName );
+                            $result   .= sprintf( "%s.min 0\n", $fieldName );
+                            $result   .= sprintf( "%s.draw LINE1\n", $fieldName );
                         } else {
-                            $result   .= sprintf( "%s.value %d\n", $user, $value );
+                            $result   .= sprintf( "%s.value %d\n", $fieldName, $value );
                         }
                     }
                     $allTotal += $value;
@@ -277,9 +281,9 @@ graph_title CPU Usage
 graph_category usage
 graph_vlabel Jiffies
 graph_info CPU usage per user. 100 jiffies = 1 full CPU core.
-graph_order $graphOrder
 
 EOF;
+// graph_order $graphOrder
             }
             unset($user);
             unset($allTotal);
