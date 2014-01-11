@@ -235,19 +235,12 @@ class ProcStats {
         $baseUrl = reset( $urlSplit );
         $result .= sprintf( "# You can fetch the values from:  %s\n", $baseUrl );
         $result .= sprintf( "# You can fetch the config from:  %s?config\n", $baseUrl );
-        if ( 'config' == $requestInfo['QUERY_STRING'] ) {
-            $result = <<<EOF
-graph_title CPU Usage
-graph_category usage
-graph_vlabel Jiffies
-graph_info CPU usage per user. 100 jiffies = 1 full CPU core.
-
-EOF;
-        }
         $stats = $this->getProcStats();
         if ( is_array($stats) )
         {
+            $graphOrder = array();
             $users = array_keys($stats);
+            sort( $users );
             $allTotal = 0;
             foreach ( $users as $user )
             {
@@ -259,6 +252,7 @@ EOF;
                             $result   .= sprintf( "%s.label %s\n", $user, $user );
                             $result   .= sprintf( "%s.type DERIVE\n", $user );
                             $result   .= sprintf( "%s.min 0\n", $user );
+                            $result   .= sprintf( "%s.draw LINE1\n", $user );
                         } else {
                             $result   .= sprintf( "%s.value %d\n", $user, $value );
                         }
@@ -271,8 +265,21 @@ EOF;
                 $result .= "TOTAL.label TOTAL\n";
                 $result .= "TOTAL.type DERIVE\n";
                 $result .= "TOTAL.min 0\n";
+                $result .= "TOTAL.draw LINE1\n";
+                $result .= "TOTAL.colour 000000\n";
             } else {
                 $result .= sprintf( "%s.value %d\n", 'TOTAL', $allTotal );
+            }
+            if ( 'config' == $requestInfo['QUERY_STRING'] ) {
+                $graphOrder = 'TOTAL ' . implode( ' ', $users );
+                $result .= <<<EOF
+graph_title CPU Usage
+graph_category usage
+graph_vlabel Jiffies
+graph_info CPU usage per user. 100 jiffies = 1 full CPU core.
+graph_order $graphOrder
+
+EOF;
             }
             unset($user);
             unset($allTotal);
