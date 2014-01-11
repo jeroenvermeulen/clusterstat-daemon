@@ -266,7 +266,7 @@ class ProcStats {
                 $result .= "TOTAL.type DERIVE\n";
                 $result .= "TOTAL.min 0\n";
                 $result .= "TOTAL.draw LINE1\n";
-                $result .= "TOTAL.colour 000000\n";
+                $result .= "TOTAL.colour cccccc\n";
             } else {
                 $result .= sprintf( "%s.value %d\n", 'TOTAL', $allTotal );
             }
