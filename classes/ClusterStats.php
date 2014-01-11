@@ -47,27 +47,21 @@ class ClusterStats {
     /**
      * Renders the homepage of the web admin backend
      *
-     * @param String $path The path of the http request
-     * @param String $queryString The querystring of the http request
-     *
      * @return String Html contents of the homepage
      */
-    public function homepage($path, $queryString) {
+    public function homepage() {
         $template = new HtmlTemplate('index.html');
         $template->setVar('runtimestats', $this->_collectRuntimeStats());
-        $template->setVar('procstats', $this->_procStats->getProcStats($path, $queryString) );
+        $template->setVar('procstats', $this->_procStats->getProcStats() );
         return $template->parse();
     }
 
     /**
      * Returns a JSON array of runtime information about the worker manager and its host system
      *
-     * @var $path        - not used
-     * @var $queryString - not used
-     *
      * @return string - JSON encoded runtime information array
      */
-    public function getRuntimeStats( /** @noinspection PhpUnusedParameterInspection */ $path, $queryString) {
+    public function getRuntimeStats() {
         return json_encode( $this->_collectRuntimeStats() );
     }
 

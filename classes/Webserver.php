@@ -72,24 +72,26 @@ class Webserver {
      * @throws Exception
      */
     public function registerController($paths, $callback, $contentType = null) {
-        if(!is_callable($callback)) {
+        if (!is_callable($callback)) {
             throw new Exception('Callback function is not callable for this webserver controller');
         }
-        if(!is_array($callback) && strpos($callback,'::')) {
+        if (!is_array($callback) && strpos($callback,'::')) {
             $funcArray = strpos($callback,'::') ? explode('::',$callback) : $callback;
             $func = new ReflectionMethod($funcArray[0],$funcArray[1]);
-        } elseif(is_array($callback)) {
+        } elseif (is_array($callback)) {
             $func = new ReflectionMethod($callback[0],$callback[1]);
         } else {
             $func = new ReflectionFunction($callback);
         }
-        if(($paramCount=$func->getNumberOfParameters())!=2) {
-            throw new Exception("Webserver controller callback function should have 2 parameters, $paramCount given");
+        if (($paramCount=$func->getNumberOfParameters()) > 1) {
+            throw new Exception( sprintf( "Webserver controller callback '%s' function should have a 0 or 1 parameters, %d given"
+                                        , $func->name
+                                        , $paramCount ) );
         }
 
-        if(!is_array($paths)) $paths = array($paths);
+        if (!is_array($paths)) $paths = array($paths);
 
-        foreach($paths as $path) {
+        foreach ($paths as $path) {
             $this->_webserverControllerMap[$path] = array(
                 'callback' => $callback,
                 'content_type' => $contentType
@@ -115,7 +117,7 @@ class Webserver {
      * @throws Exception
      */
     public function setRoot($webRoot) {
-        if(!file_exists($webRoot)) {
+        if (!file_exists($webRoot)) {
             throw new Exception('The specified webroot does not exist and cannot be set');
         }
         $this->_webserverWebRoot = realpath($webRoot);
@@ -161,6 +163,11 @@ class Webserver {
         }
         $location = $matches['location'];
 
+        $hostname = '';
+        if ( preg_match('/Host\s*:\s*([a-zA-Z0-9\.]+(:\d+)?)+\s*/',$requestHeader, $matches) ) {
+            $hostname = $matches[1];
+        }
+
         // check if the webclient is capable of retrieving gzipped or deflated contents
         preg_match('/Accept-Encoding\s*:\s*(?P<encodings>.*)/', $requestHeader, $matches);
         if(isset($matches['encodings'])) {
@@ -203,7 +210,16 @@ class Webserver {
                 if(!is_null($this->_webserverControllerMap[$path]['content_type'])) {
                     $contentType = $this->_webserverControllerMap[$path]['content_type'];
                 }
-                $responseBody = call_user_func($this->_webserverControllerMap[$path]['callback'], $path, $queryString);
+                $protocol = ( Config::get('http_ssl_enabled') ) ? 'https' : 'http';
+                $requestInfo = array( 'PATH' => $path
+                                    , 'REQUEST_URI' => $location
+                                    , 'QUERY_STRING' => $queryString
+                                    , 'HTTP_HOST' => $hostname
+                                    , 'URL' => sprintf( "%s://%s%s", $protocol, $hostname, $location ) );
+                if ( 'https' == $protocol ) {
+                    $requestInfo[ 'HTTPS' ] = 'on';
+                }
+                $responseBody = call_user_func( $this->_webserverControllerMap[$path]['callback'], $requestInfo );
                 if(!is_scalar($responseBody)) {
                     throw new Exception("Invalid callback return value from web controller '{$path}'");
                 }

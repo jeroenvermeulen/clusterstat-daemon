@@ -129,11 +129,9 @@ class ProcStats {
     /**
      * Returns JSON encoded process statistics
      *
-     * @param $path        - not used
-     * @param $queryString - not used
      * @return string - JSON encoded process statistics
      */
-    public function getJsonProcStats( /** @noinspection PhpUnusedParameterInspection */ $path, $queryString )
+    public function getJsonProcStats()
     {
         //return $this->_jsonIndent( json_encode($result) );
         return json_encode($this->getProcStats());
@@ -142,11 +140,9 @@ class ProcStats {
     /**
      * Returns "user1:NUMBER user2:NUMBER" string for Cacti, jiffies
      *
-     * @param $path        - not used
-     * @param $queryString - not used
      * @return string - data about used jiffies per user for Cacti
      */
-    public function getCactiProcStats( /** @noinspection PhpUnusedParameterInspection */ $path, $queryString )
+    public function getCactiProcStats()
     {
         $result = '';
         $stats = $this->getProcStats();
@@ -170,11 +166,9 @@ class ProcStats {
     /**
      * Returns "user1:NUMBER user2:NUMBER" string for Cacti, process count
      *
-     * @param $path
-     * @param $queryString
      * @return string - data about number of processes per user for Cacti
      */
-    public function getCactiProcCount( /** @noinspection PhpUnusedParameterInspection */ $path, $queryString )
+    public function getCactiProcCount()
     {
         $result = '';
         $stats = $this->getProcStats();
@@ -198,11 +192,9 @@ class ProcStats {
     /**
      * Returns "user1=NUMBER user2=NUMBER" string for Nagios
      *
-     * @param $path
-     * @param $queryString
      * @return string, data about used jiffies per user for Nagios
      */
-    public function getNagiosProcStats( /** @noinspection PhpUnusedParameterInspection */ $path, $queryString )
+    public function getNagiosProcStats()
     {
         $result = '';
         $stats = $this->getProcStats();
@@ -231,13 +223,73 @@ class ProcStats {
     }
 
     /**
+     * Returns statistics data for Munin
+     *
+     * @param $requestInfo - Array with request info
+     * @return string, data about used jiffies per user for Munin
+     */
+    public function getMuninProcStats( $requestInfo )
+    {
+        $result = '';
+        $urlSplit = explode( '?', $requestInfo['URL'] );
+        $baseUrl = reset( $urlSplit );
+        $result .= sprintf( "# You can fetch the values from:  %s\n", $baseUrl );
+        $result .= sprintf( "# You can fetch the config from:  %s?config\n", $baseUrl );
+        if ( 'config' == $requestInfo['QUERY_STRING'] ) {
+            $result = <<<EOF
+graph_title CPU Usage
+graph_category usage
+graph_vlabel Jiffies
+graph_info CPU usage per user. 100 jiffies = 1 full CPU core.
+
+EOF;
+        }
+        $stats = $this->getProcStats();
+        if ( is_array($stats) )
+        {
+            $users = array_keys($stats);
+            $allTotal = 0;
+            foreach ( $users as $user )
+            {
+                if ( isset($stats[$user]['TOTAL']['counter']) )
+                {
+                    $value     = $stats[$user]['TOTAL']['counter'];
+                    if ( $value > 100 ) {
+                        if ( 'config' == $requestInfo['QUERY_STRING'] ) {
+                            $result   .= sprintf( "%s.label %s\n", $user, $user );
+                            $result   .= sprintf( "%s.type DERIVE\n", $user );
+                            $result   .= sprintf( "%s.min 0\n", $user );
+                        } else {
+                            $result   .= sprintf( "%s.value %d\n", $user, $value );
+                        }
+                    }
+                    $allTotal += $value;
+                    unset($value);
+                }
+            }
+            if ( 'config' == $requestInfo['QUERY_STRING'] ) {
+                $result .= "TOTAL.label TOTAL\n";
+                $result .= "TOTAL.type DERIVE\n";
+                $result .= "TOTAL.min 0\n";
+            } else {
+                $result .= sprintf( "%s.value %d\n", 'TOTAL', $allTotal );
+            }
+            unset($user);
+            unset($allTotal);
+            unset($users);
+        }
+        unset($urlSplit);
+        unset($baseUrl);
+        unset($stats);
+        return $result;
+    }
+
+    /**
      * Returns a HTML layout detailed overview
      *
-     * @param $path        - not used
-     * @param $queryString - not used
      * @return string - HTML for detailed overview
      */
-    public function getProcStatsDetailHtml( /** @noinspection PhpUnusedParameterInspection */ $path, $queryString )
+    public function getProcStatsDetailHtml()
     {
         $result       = '';
         $result      .= '<table border="1" cellpadding="2" style="border-collapse:collapse; border-bottom:2px solid black;">'."\n";
@@ -405,11 +457,9 @@ class ProcStats {
     /**
      * Outputs a tree useful for debugging
      *
-     * @param $path        - not used
-     * @param $queryString - not used
      * @return string - ascii art tree with collected process information
      */
-    public function debugTree( /** @noinspection PhpUnusedParameterInspection */ $path, $queryString )
+    public function debugTree()
     {
         $statData = $this->_collectProcStats();
         return $this->_debugTree( $statData );
