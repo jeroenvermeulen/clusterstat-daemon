@@ -256,6 +256,7 @@ class ProcStats {
                             $result   .= sprintf( "%s.label %s\n", $fieldName, $user );
                             $result   .= sprintf( "%s.type DERIVE\n", $fieldName );
                             $result   .= sprintf( "%s.min 0\n", $fieldName );
+                            $result   .= sprintf( "%s.max 3200\n", $fieldName );
                             $result   .= sprintf( "%s.draw LINE1\n", $fieldName );
                         } else {
                             $result   .= sprintf( "%s.value %d\n", $fieldName, $value );
@@ -269,6 +270,7 @@ class ProcStats {
                 $result .= "TOTAL.label TOTAL\n";
                 $result .= "TOTAL.type DERIVE\n";
                 $result .= "TOTAL.min 0\n";
+                $result .= "TOTAL.max 3200\n";
                 $result .= "TOTAL.draw LINE1\n";
                 $result .= "TOTAL.colour cccccc\n";
             } else {
