@@ -283,6 +283,7 @@ graph_title CPU Usage
 graph_category usage
 graph_vlabel Jiffies
 graph_info CPU usage per user. 100 jiffies = 1 full CPU core.
+graph_args --upper-limit 1000 --lower-limit 0 --rigid
 
 EOF;
 // graph_order $graphOrder
