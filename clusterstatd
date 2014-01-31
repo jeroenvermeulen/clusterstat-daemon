@@ -71,7 +71,7 @@ try {
     $webserver->registerController( '/procstats_cacti', array($procstats, 'getCactiProcStats'), 'text/plain' );
     $webserver->registerController( '/proccount_cacti', array($procstats, 'getCactiProcCount'), 'text/plain' );
     $webserver->registerController( '/procstats_nagios', array($procstats, 'getNagiosProcStats'), 'text/plain' );
-    $webserver->registerController( array( '/procstats/munin/', '/procstats/munin/config/' )
+    $webserver->registerController( array( '/procstats/munin/jiffies/', '/procstats/munin/procs/' )
                                   , array( $procstats, 'getMuninProcStats' )
                                   , 'text/plain' );
     $webserver->registerController( '/procstats_detail_html', array($procstats, 'getProcStatsDetailHtml'), 'text/html' );

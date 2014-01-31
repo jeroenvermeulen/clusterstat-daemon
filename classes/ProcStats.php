@@ -223,7 +223,7 @@ class ProcStats {
     }
 
     /**
-     * Returns statistics data for Munin
+     * Returns CPU usage statistics data for Munin
      *
      * @param $requestInfo - Array with request info
      * @return string, data about used jiffies per user for Munin
@@ -231,14 +231,26 @@ class ProcStats {
     public function getMuninProcStats( $requestInfo )
     {
         $result = '';
+        $pathParts = explode( '/', $requestInfo['PATH'] );
+        switch( $pathParts[3] ) {
+            case 'jiffies':
+                $key = 'counter';
+                break;
+            case 'procs':
+                $key = 'procs';
+                break;
+            default:
+                return sprintf('Unknown key: "%s"',$pathParts[3]);
+        }
         $urlSplit = explode( '?', $requestInfo['URL'] );
         $baseUrl = reset( $urlSplit );
+        $config = ( 'config' == $requestInfo['QUERY_STRING'] );
+
         $result .= sprintf( "# You can fetch the values from:  %s\n", $baseUrl );
         $result .= sprintf( "# You can fetch the config from:  %s?config\n", $baseUrl );
         $stats = $this->getProcStats();
         if ( is_array($stats) )
         {
-            $graphOrder = array();
             $users = array_keys($stats);
             sort( $users );
             $allTotal = 0;
@@ -248,45 +260,48 @@ class ProcStats {
                 if ( 'root' == $fieldName ) {
                     $fieldName = 'uroot';
                 }
-                if ( isset($stats[$user]['TOTAL']['counter']) )
+                if ( isset($stats[$user]['TOTAL']['counter'])
+                     && $stats[$user]['TOTAL']['counter'] > 100 )
                 {
-                    $value     = $stats[$user]['TOTAL']['counter'];
-                    if ( $value > 100 ) {
-                        if ( 'config' == $requestInfo['QUERY_STRING'] ) {
-                            $result   .= sprintf( "%s.label %s\n", $fieldName, $user );
+                    if ( 'config' == $requestInfo['QUERY_STRING'] ) {
+                        $result   .= sprintf( "%s.label %s\n", $fieldName, $user );
+                        $result   .= sprintf( "%s.min 0\n", $fieldName );
+                        $result   .= sprintf( "%s.draw LINE1\n", $fieldName );
+                        if ( 'counter' == $key ) {
                             $result   .= sprintf( "%s.type DERIVE\n", $fieldName );
-                            $result   .= sprintf( "%s.min 0\n", $fieldName );
                             $result   .= sprintf( "%s.max 3200\n", $fieldName );
-                            $result   .= sprintf( "%s.draw LINE1\n", $fieldName );
-                        } else {
-                            $result   .= sprintf( "%s.value %d\n", $fieldName, $value );
                         }
+                    } else {
+                        $result   .= sprintf( "%s.value %d\n", $fieldName, $stats[$user]['TOTAL'][$key] );
+                        $allTotal += $stats[$user]['TOTAL'][$key];
                     }
-                    $allTotal += $value;
-                    unset($value);
                 }
             }
-            if ( 'config' == $requestInfo['QUERY_STRING'] ) {
+            if ( $config ) {
                 $result .= "TOTAL.label TOTAL\n";
-                $result .= "TOTAL.type DERIVE\n";
                 $result .= "TOTAL.min 0\n";
-                $result .= "TOTAL.max 3200\n";
                 $result .= "TOTAL.draw LINE1\n";
                 $result .= "TOTAL.colour cccccc\n";
+                if ( 'counter' == $key ) {
+                    $result .= "TOTAL.type DERIVE\n";
+                    $result .= "TOTAL.max 3200\n";
+                }
             } else {
                 $result .= sprintf( "%s.value %d\n", 'TOTAL', $allTotal );
             }
-            if ( 'config' == $requestInfo['QUERY_STRING'] ) {
-                $graphOrder = 'TOTAL ' . implode( ' ', $users );
-                $result .= <<<EOF
-graph_title CPU Usage
-graph_category usage
-graph_vlabel Jiffies
-graph_info CPU usage per user. 100 jiffies = 1 full CPU core.
-graph_args --upper-limit 1000 --lower-limit 0 --rigid
-
-EOF;
-// graph_order $graphOrder
+            if ( $config ) {
+                if ( 'counter' == $key ) {
+                    $result .= "graph_title CPU Usage\n";
+                    $result .= "graph_vlabel jiffies\n";
+                    $result .= "graph_info CPU usage per user. 100 jiffies = 1 full CPU core.\n";
+                    $result .= "graph_args --upper-limit 1000 --lower-limit 0 --rigid --slope-mode --units-exponent 1\n";
+                } elseif ( 'procs' == $key ) {
+                    $result .= "graph_title Running Processes\n";
+                    $result .= "graph_vlabel processes\n";
+                    $result .= "graph_info Running processes per user.\n";
+                    $result .= "graph_args --lower-limit 0 --rigid --slope-mode --units-exponent 1\n";
+                }
+                $result .= "graph_category usage\n";
             }
             unset($user);
             unset($allTotal);
