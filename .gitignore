@@ -3,7 +3,7 @@
 /SOURCES/*.tgz
 /BUILD/*
 /BUILDROOT/*
-/userstats.sqlite
+/userstats.sqlite*
 /logs/*.log*
 /includes/config.php
 /includes/server.pem
