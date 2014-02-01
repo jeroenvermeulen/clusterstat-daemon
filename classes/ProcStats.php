@@ -302,6 +302,7 @@ class ProcStats {
                     $result .= "graph_args --lower-limit 0 --rigid --slope-mode --units-exponent 1\n";
                 }
                 $result .= "graph_category usage\n";
+                $result .= "graph_scale no\n";
             }
             unset($user);
             unset($allTotal);
