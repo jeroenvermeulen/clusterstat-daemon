@@ -299,7 +299,7 @@ class ProcStats {
                     $result .= "graph_title Running Processes\n";
                     $result .= "graph_vlabel processes\n";
                     $result .= "graph_info Running processes per user.\n";
-                    $result .= "graph_args --lower-limit 0 --rigid --slope-mode --units-exponent 1\n";
+                    $result .= "graph_args --lower-limit 0 --slope-mode --units-exponent 1\n";
                 }
                 $result .= "graph_category usage\n";
                 $result .= "graph_scale no\n";
