@@ -4,7 +4,7 @@
     Licence: GNU General Public License v3.0. More info: http://www.gnu.org/licenses/
 
 
-The default port is `8888`, default user is `stats`, default password `stats`.
+The default port is `8888`, default user is `stats`, default password `letmein`.
 
 Install from GitHub on Ubuntu
 -----------------------------
