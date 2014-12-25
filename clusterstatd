@@ -62,6 +62,7 @@ try {
     // initialize cluster statistics collection
     $stats = new ClusterStats();
     $procstats = new ProcStats();
+    $phpFpmStats = new PhpFpmStats();
 
     $stats->setProcStats( $procstats );
 
@@ -76,6 +77,7 @@ try {
                                   , 'text/plain' );
     $webserver->registerController( '/procstats_detail_html', array($procstats, 'getProcStatsDetailHtml'), 'text/html' );
     $webserver->registerController( '/procstats_debugtree', array($procstats, 'debugTree'), 'text/plain' );
+    $webserver->registerController( '/phpfpm_stats', array($phpFpmStats, 'getStats'), 'text/plain' );
 
     // register timers
     $timer = new Timer();
