@@ -3,46 +3,115 @@
 require 'Adoy_FastCGI_Client.php'; // from: https://github.com/adoy/PHP-FastCGI-Client/
 
 class PhpFpmStats {
-    protected $sockets = array( 'scooters' => 'unix:///var/run/php-fpm-scooters.sock',
-                                'israline' => 'tcp://86.109.17.219:9000' );
-    protected $statusPath = '/jv_fpmstatus';
+    protected $sockets       = array( 'scooters' => 'unix:///var/run/php-fpm-scooters.sock',
+                                      'israline' => 'tcp://86.109.17.219:9000' );
+    protected $statusPath    = '/jv_fpmstatus';
     protected $requestParams = array();
-    protected $clients = array();
-    protected $database     = null;
-    protected $sqliteFile   = 'phpfpm_stats.sqlite';
+    protected $clients       = array();
+    protected $previousProcesses = array();
+    /** @var PDO */
+    protected $database      = null;
+    protected $sqliteFile    = 'phpfpm_stats.sqlite';
+    protected $workdir       = null;
+    /** @var PDOStatement */
+    protected $selectUrlQuery = null;
+    /** @var PDOStatement */
+    protected $insertUrlQuery = null;
 
     public function __construct() {
+        $this->workDir = dirname( dirname(__FILE__) );
         $this->requestParams = array(
             'REQUEST_METHOD'    => 'GET',
             'SCRIPT_FILENAME'   => $this->statusPath,
             'SCRIPT_NAME'       => $this->statusPath,
             'QUERY_STRING'      => 'full&json',
         );
-        foreach( $this->sockets as $name => $socket ) {
-            $this->clients[ $name ] = new Adoy\FastCGI\Client( $socket, -1 );
-            $this->clients[ $name ]->setPersistentSocket( true );
-            $this->clientKeys[] = $name;
+        foreach( $this->sockets as $pool => $socket ) {
+            $this->clients[$pool] = new Adoy\FastCGI\Client( $socket, -1 );
+            $this->clients[$pool]->setPersistentSocket( true );
+            $this->previousProcesses[$pool] = array();
         }
+        $database = $this->getDatabase();
+        $this->insertUrlQuery = $database->prepare('INSERT INTO "url" ("pool","url") VALUES (:pool,:url)');
+        $this->selectUrlQuery = $database->prepare('SELECT "id" FROM "url" WHERE "pool"=:pool AND "url"=:url');
+        $this->updateStatsQuery = $database->prepare('UPDATE "stats" SET "count"="count"+1, "time"="time"+:time,
+                                                      "cputime"="cputime"+:cputime, "mem"="mem"+:mem
+                                                      WHERE "date"=:date AND "url_id"=:url_id');
+        $this->insertStatsQuery = $database->prepare('INSERT INTO "stats" ("date","url_id","count","time","cputime","mem")
+                                                      VALUES (:date,:url_id,1,:time,:cputime,:mem)');
+
     }
 
     public function getStats() {
         $result = '';
+        $url = '';
+        $pool = '';
+        $url_id = '';
+        $date = date('Y-m-d');
+        $time = 0;
+        $cputime = 0;
+        $mem = 0;
+        $this->selectUrlQuery->bindParam( ':url',  $url );
+        $this->selectUrlQuery->bindParam( ':pool', $pool );
+        $this->insertUrlQuery->bindParam( ':url',  $url );
+        $this->insertUrlQuery->bindParam( ':pool', $pool );
+        $this->updateStatsQuery->bindParam( ':url_id',  $url_id );
+        $this->updateStatsQuery->bindParam( ':date', $date );
+        $this->updateStatsQuery->bindParam( ':time', $time );
+        $this->updateStatsQuery->bindParam( ':cputime', $cputime );
+        $this->updateStatsQuery->bindParam( ':mem', $mem );
+        $this->insertStatsQuery->bindParam( ':url_id',  $url_id );
+        $this->insertStatsQuery->bindParam( ':date', $date );
+        $this->insertStatsQuery->bindParam( ':time', $time );
+        $this->insertStatsQuery->bindParam( ':cputime', $cputime );
+        $this->insertStatsQuery->bindParam( ':mem', $mem );
         foreach( $this->clients as $name => &$nil ) {
             $response = $this->clients[ $name ]->request($this->requestParams, false);
             if ( preg_match("|\n({.+})$|s", $response, $matches) ) {
                 $data = json_decode( $matches[1], true );
                 if ( !is_null($data) && !empty($data['pool'])
                      && !empty($data['processes']) && is_array($data['processes']) ) {
-                    // $data['pool']
-                    foreach ( $data['processes'] as $procKey => &$nil ) {
-                        if ( 'Idle' == $data['processes'][$procKey]['state'] ) {
-                            $result .= "url: ".$data['processes'][$procKey]['request uri']."\n";
-                            $result .= "cpu: ".$data['processes'][$procKey]['last request cpu']."\n";
-                            $result .= "mem: ".$data['processes'][$procKey]['last request memory']."\n";
-                            $result .= "time: ".$data['processes'][$procKey]['request duration']."\n";
-                            $result .= "\n";
+                    $pool = $data['pool'];
+                    $currentProcesses = array();
+                    foreach ( $data['processes'] as $procNr => &$nil ) {
+                        if ( 'Idle' == $data['processes'][$procNr]['state'] ) {
+                            $procKey = $data[ 'processes' ][ $procNr ][ 'pid' ] . '-'
+                                       . $data[ 'processes' ][ $procNr ][ 'requests' ];
+                            $currentProcesses[$procKey] = 1;
+                            if ( empty($this->previousProcesses[$pool][$procKey]) ) {
+                                $url = substr($data['processes'][$procNr]['request uri'],0,255);
+                                $time = $data['processes'][$procNr]['request duration'];
+                                $cputime = round( $time * $data['processes'][$procNr]['last request cpu'] / 100 );
+                                $mem = $data['processes'][$procNr]['last request memory'];
+
+                                $this->selectUrlQuery->execute();
+                                $url_id = $this->selectUrlQuery->fetchColumn();
+                                $result .= "url id: ".$url_id."\n";
+
+                                if ( empty($url_id) ) {
+                                    $this->insertUrlQuery->execute();
+                                    $url_id = $this->database->lastInsertId();
+                                    $result .= "inserted url id2: ".$url_id."\n";
+                                }
+
+
+                                $this->updateStatsQuery->execute();
+                                if ( 0 == $this->updateStatsQuery->rowCount() ) {
+                                    $result .= "inserting.\n";
+                                    $this->insertStatsQuery->execute();
+                                }
+
+                                $result .= "pool: ".$pool."\n";
+                                $result .= "meth: ".$data['processes'][$procNr]['request method']."\n";
+                                $result .= "url: ".$url."\n";
+                                $result .= "cpu: ".$cputime."\n";
+                                $result .= "mem: ".$mem."\n";
+                                $result .= "time: ".$time."\n";
+                                $result .= "\n";
+                            }
                         }
                     }
+                    $this->previousProcesses[$pool] = $currentProcesses;
                 }
             }
         }
@@ -55,12 +124,12 @@ class PhpFpmStats {
      * @throws Exception
      * @return PDO
      */
-    protected function _getDatabase()
+    protected function getDatabase()
     {
-        $sqliteFile   = $this->_workDir . '/' . $this->_sqliteFile;
-        $templateFile = $this->_workDir.'/templates/'.$this->_sqliteFile;
-        if ( empty($this->_database) )
+        if ( empty($this->database) )
         {
+            $sqliteFile   = $this->workDir . '/' . $this->sqliteFile;
+            $templateFile = $this->workDir.'/templates/'.$this->sqliteFile;
             if ( !file_exists($sqliteFile) )
             {
                 if ( file_exists($templateFile) )
@@ -78,13 +147,13 @@ class PhpFpmStats {
                 }
             }
             // Create (connect to) SQLite database in file
-            $this->_database = new PDO('sqlite:'.$sqliteFile);
+            $this->database = new PDO('sqlite:'.$sqliteFile);
             // Set errormode to exceptions
-            $this->_database->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+//            $this->database->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            unset($sqliteFile);
+            unset($templateFile);
         }
-        unset($sqliteFile);
-        unset($templateFile);
-        return $this->_database;
+        return $this->database;
     }
 
     /**
@@ -95,7 +164,7 @@ class PhpFpmStats {
      */
     protected function _writeToDatabase( $data )
     {
-        $database    = $this->_getDatabase();
+        $database    = $this->getDatabase();
         $database->beginTransaction();
 
         $updateSQL   = 'UPDATE jiffy SET lastvalue=:lastvalue, counter=:counter WHERE linuxuser=:linuxuser AND process=:process';
