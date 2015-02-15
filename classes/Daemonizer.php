@@ -45,6 +45,7 @@ class Daemonizer {
     private static $_shouldReload = false;
     private static $_shouldRestart = false;
     private static $_shouldDebug = false;
+    private static $_shouldUpstart = false;
 
     /**
      * Activate the daemonization process
@@ -61,6 +62,7 @@ class Daemonizer {
            +(int)self::$_shouldReload
            +(int)self::$_shouldRestart
            +(int)self::$_shouldDebug
+           +(int)self::$_shouldUpstart
            !=1)
         {
             die('Invalid option '.implode(' ',self::$_scriptArguments)."\r\nusage: ".self::$_scriptName." <start|stop|reload|restart|debug>\r\n\r\n");
@@ -91,7 +93,7 @@ class Daemonizer {
         }
 
         // if the debug flag is set, prevent actual daemonization
-        if(self::$_shouldDebug) return;
+        if(self::$_shouldDebug || self::$_shouldUpstart) return;
 
         // fork the current process, make session leader and kill the old parent process to daemonize
         if (($pid=pcntl_fork())==-1 || ($pid==0 && posix_setsid()<0)) {
@@ -161,6 +163,7 @@ class Daemonizer {
             self::$_scriptName = $processName;
             self::$_scriptArguments = array();
         }
+        self::$_shouldUpstart = !empty($_SERVER['UPSTART_JOB']);
         if(@is_writable('/tmp/')) {
             $tmpDir = '/tmp/';
         } elseif(function_exists('sys_get_temp_dir')) {
