@@ -1,0 +1,49 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:           clusterstatd
+# Required-Start:     $local_fs $remote_fs $network
+# Required-Stop:      $local_fs $remote_fs $network
+# Default-Start:      2 3 4 5
+# Default-Stop:       0 1 6
+# Short-Description:  ClusterStat Daemon
+# Description:        This script collects status data for shared hosting.
+### END INIT INFO
+
+PHP=$(which php)
+DAEMON="/usr/share/clusterstatd/clusterstatd.php"
+NAME="clusterstatd"
+PIDFILE=/var/run/$NAME.pid
+
+test $PHP || { echo "PHP is not found"; exit 0; }
+test -x $PHP || { echo "PHP is not executable: $PHP"; exit 0; }
+test -f $DAEMON || { echo "Main ClusterStatD script not found: $DAEMON"; exit 0; }
+
+set -e
+
+start() {
+        echo "Starting $NAME ..."
+        $PHP $DAEMON start
+}
+stop() {
+        echo "Stopping $NAME ..."
+        $PHP $DAEMON stop
+}
+restart() {
+        echo "Restarting $NAME..."
+        stop
+        start
+}
+case "$CMD" in
+        start)
+                start
+                ;;
+        stop)
+                stop
+                ;;
+        restart)
+                restart
+                ;;
+        *)
+                echo "Usage $0 {start|stop|restart}"
+                RETVAL=1
+esac

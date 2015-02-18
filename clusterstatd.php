@@ -1,31 +1,7 @@
-#!/usr/bin/php
+#!/usr/bin/env php
 <?php
 /*
-### BEGIN INIT INFO
-# Provides:           clusterstatd
-# Required-Start:     $local_fs $remote_fs $network
-# Required-Stop:      $local_fs $remote_fs $network
-# Default-Start:      2 3 4 5
-# Default-Stop:       0 1 6
-# Short-Description:  ClusterStat Daemon
-# Description:        This script collects status data for shared hosting.
-### END INIT INFO
-
-Enable init script on Debian and Ubuntu:
-
-  sudo ln -s /usr/share/clusterstat-daemon/clusterstatd /etc/init.d/clusterstatd
-  sudo update-rc.d clusterstatd defaults
-  service clusterstatd start
-
-Enable init script on Red Hat and CentOS:
-
-  ln -s /usr/share/clusterstat-daemon/clusterstatd /etc/init.d/clusterstatd
-  chkconfig clusterstatd on
-  service clusterstatd start
-
-*/
-/*
-clusterstatd - Main executable for the ClusterStat Daemon
+clusterstatd.php - Main executable for the ClusterStat Daemon
 Copyright (C) 2013  Bas Peters <bas@baspeters.com> & Jeroen Vermeulen <info@jeroenvermeulen.eu>
 
 This program is free software: you can redistribute it and/or modify
@@ -42,9 +18,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 /**
- * @package     ClusterStatsDaemon
- * @author Bas Peters       <bas@baspeters.com>
- * @author Jeroen Vermeulen <info@jeroenvermeulen.eu>
+ * @package  ClusterStatsDaemon
+ * @author   Bas Peters       <bas@baspeters.com>
+ * @author   Jeroen Vermeulen <info@jeroenvermeulen.eu>
  */
 try {
     // prepare environment
