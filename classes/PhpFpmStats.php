@@ -3,8 +3,17 @@
 require 'Adoy_FastCGI_Client.php'; // from: https://github.com/adoy/PHP-FastCGI-Client/
 
 class PhpFpmStats {
-    protected $sockets       = array( 'scooters' => 'unix:///var/run/php-fpm-scooters.sock',
-                                      'israline' => 'tcp://86.109.17.219:9000' );
+    protected $sockets       = array(
+        'demo' => 'unix:///var/run/php-fpm-demo.sock',
+        'israline' => 'tcp://86.109.17.219:9000',
+        'kcperf' => 'tcp://86.109.17.204:9000',
+        'maghopro' => 'unix:///var/run/php-fpm-maghopro.sock',
+        'narwalla' => 'unix:///var/run/php-fpm-narwalla.sock',
+        'scooters' => 'unix:///var/run/php-fpm-scooters.sock',
+        'semtaf' => 'tcp://86.109.17.202:9000',
+        'sky' => 'unix:///var/run/php-fpm-sky.sock',
+        'verzin' => 'tcp://86.109.17.210:9000',
+        'vloprwww' => 'unix:///var/run/php-fpm-vloprwww.sock' );
     protected $statusPath    = '/jv_fpmstatus';
     protected $requestParams = array();
     protected $clients       = array();
@@ -14,9 +23,9 @@ class PhpFpmStats {
     protected $sqliteFile    = 'phpfpm_stats.sqlite';
     protected $workdir       = null;
     /** @var PDOStatement */
-    protected $selectUrlQuery = null;
+    protected $updateStatsQuery = null;
     /** @var PDOStatement */
-    protected $insertUrlQuery = null;
+    protected $insertStatsQuery = null;
 
     public function __construct() {
         $this->workDir = dirname( dirname(__FILE__) );
@@ -26,47 +35,64 @@ class PhpFpmStats {
             'SCRIPT_NAME'       => $this->statusPath,
             'QUERY_STRING'      => 'full&json',
         );
-        foreach( $this->sockets as $pool => $socket ) {
-            $this->clients[$pool] = new Adoy\FastCGI\Client( $socket, -1 );
-            $this->clients[$pool]->setPersistentSocket( true );
-            $this->previousProcesses[$pool] = array();
+        foreach( $this->sockets as $name => $socket ) {
+            $this->clients[$name] = new Adoy\FastCGI\Client( $socket, -1 );
+            $this->clients[$name]->setPersistentSocket( true );
+            $this->previousProcesses[$name] = array();
         }
         $database = $this->getDatabase();
-        $this->insertUrlQuery = $database->prepare('INSERT INTO "url" ("pool","url") VALUES (:pool,:url)');
-        $this->selectUrlQuery = $database->prepare('SELECT "id" FROM "url" WHERE "pool"=:pool AND "url"=:url');
         $this->updateStatsQuery = $database->prepare('UPDATE "stats" SET "count"="count"+1, "time"="time"+:time,
-                                                      "cputime"="cputime"+:cputime, "mem"="mem"+:mem
-                                                      WHERE "date"=:date AND "url_id"=:url_id');
-        $this->insertStatsQuery = $database->prepare('INSERT INTO "stats" ("date","url_id","count","time","cputime","mem")
-                                                      VALUES (:date,:url_id,1,:time,:cputime,:mem)');
-
+                                                                         "cputime"="cputime"+:cputime, "mem"="mem"+:mem
+                                                      WHERE "date"=:date AND "pool"=:pool AND "method"=:method
+                                                            AND "url"=:url');
+        if ( empty($this->updateStatsQuery) ) {
+            throw new Exception('Prepare of update statement failed.');
+        }
+        $this->insertStatsQuery = $database->prepare('INSERT INTO "stats"
+                                                         ("date","pool","method","url","count","time","cputime","mem")
+                                                      VALUES
+                                                         (:date,:pool,:method,:url,1,:time,:cputime,:mem)');
+        if ( empty($this->insertStatsQuery) ) {
+            throw new Exception('Prepare of insert statement failed.');
+        }
     }
 
     public function getStats() {
+        return 'TODO';
+    }
+
+    public function timerStats() {
         $result = '';
         $url = '';
         $pool = '';
-        $url_id = '';
+        $method = '';
         $date = date('Y-m-d');
         $time = 0;
         $cputime = 0;
         $mem = 0;
-        $this->selectUrlQuery->bindParam( ':url',  $url );
-        $this->selectUrlQuery->bindParam( ':pool', $pool );
-        $this->insertUrlQuery->bindParam( ':url',  $url );
-        $this->insertUrlQuery->bindParam( ':pool', $pool );
-        $this->updateStatsQuery->bindParam( ':url_id',  $url_id );
+        $this->updateStatsQuery->bindParam( ':pool', $pool );
+        $this->updateStatsQuery->bindParam( ':method', $method );
+        $this->updateStatsQuery->bindParam( ':url',  $url );
         $this->updateStatsQuery->bindParam( ':date', $date );
         $this->updateStatsQuery->bindParam( ':time', $time );
         $this->updateStatsQuery->bindParam( ':cputime', $cputime );
         $this->updateStatsQuery->bindParam( ':mem', $mem );
-        $this->insertStatsQuery->bindParam( ':url_id',  $url_id );
+        $this->insertStatsQuery->bindParam( ':pool', $pool );
+        $this->insertStatsQuery->bindParam( ':method', $method );
+        $this->insertStatsQuery->bindParam( ':url',  $url );
         $this->insertStatsQuery->bindParam( ':date', $date );
         $this->insertStatsQuery->bindParam( ':time', $time );
         $this->insertStatsQuery->bindParam( ':cputime', $cputime );
         $this->insertStatsQuery->bindParam( ':mem', $mem );
         foreach( $this->clients as $name => &$nil ) {
-            $response = $this->clients[ $name ]->request($this->requestParams, false);
+            try {
+                $response = $this->clients[ $name ]->request($this->requestParams, false);
+            } catch (Exception $e) {
+                // Socket may be broken, reconnect
+                $this->clients[$name] = new Adoy\FastCGI\Client( $this->sockets[$name], -1 );
+                $response = $this->clients[ $name ]->request($this->requestParams, false);
+            }
+
             if ( preg_match("|\n({.+})$|s", $response, $matches) ) {
                 $data = json_decode( $matches[1], true );
                 if ( !is_null($data) && !empty($data['pool'])
@@ -74,44 +100,26 @@ class PhpFpmStats {
                     $pool = $data['pool'];
                     $currentProcesses = array();
                     foreach ( $data['processes'] as $procNr => &$nil ) {
-                        if ( 'Idle' == $data['processes'][$procNr]['state'] ) {
+                        if ( 'Idle' == $data['processes'][$procNr]['state']
+                             && !empty($data['processes'][$procNr]['last request cpu']) ) {
                             $procKey = $data[ 'processes' ][ $procNr ][ 'pid' ] . '-'
                                        . $data[ 'processes' ][ $procNr ][ 'requests' ];
                             $currentProcesses[$procKey] = 1;
-                            if ( empty($this->previousProcesses[$pool][$procKey]) ) {
-                                $url = substr($data['processes'][$procNr]['request uri'],0,255);
-                                $time = $data['processes'][$procNr]['request duration'];
+                            if ( empty($this->previousProcesses[$name][$procKey]) ) {
+                                $method  = $data['processes'][$procNr]['request method'];
+                                $url     = substr($data['processes'][$procNr]['request uri'],0,255);
+                                $time    = $data['processes'][$procNr]['request duration'];
                                 $cputime = round( $time * $data['processes'][$procNr]['last request cpu'] / 100 );
-                                $mem = $data['processes'][$procNr]['last request memory'];
-
-                                $this->selectUrlQuery->execute();
-                                $url_id = $this->selectUrlQuery->fetchColumn();
-                                $result .= "url id: ".$url_id."\n";
-
-                                if ( empty($url_id) ) {
-                                    $this->insertUrlQuery->execute();
-                                    $url_id = $this->database->lastInsertId();
-                                    $result .= "inserted url id2: ".$url_id."\n";
-                                }
-
-
+                                $mem     = $data['processes'][$procNr]['last request memory'];
                                 $this->updateStatsQuery->execute();
                                 if ( 0 == $this->updateStatsQuery->rowCount() ) {
                                     $result .= "inserting.\n";
                                     $this->insertStatsQuery->execute();
                                 }
-
-                                $result .= "pool: ".$pool."\n";
-                                $result .= "meth: ".$data['processes'][$procNr]['request method']."\n";
-                                $result .= "url: ".$url."\n";
-                                $result .= "cpu: ".$cputime."\n";
-                                $result .= "mem: ".$mem."\n";
-                                $result .= "time: ".$time."\n";
-                                $result .= "\n";
                             }
                         }
                     }
-                    $this->previousProcesses[$pool] = $currentProcesses;
+                    $this->previousProcesses[$name] = $currentProcesses;
                 }
             }
         }
