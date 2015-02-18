@@ -6,8 +6,10 @@
 
 The default port is `8888`, default user is `stats`, default password `letmein`.
 
-Install from GitHub on Ubuntu
------------------------------
+All install instructions below need to be executed as user *root*.
+
+Install from GitHub on Ubuntu (Upstart)
+---------------------------------------
 
     apt-get install git-core php5-cli php5-sqlite curl debian-helper-scripts
 
@@ -15,13 +17,13 @@ Install from GitHub on Ubuntu
     cd /usr/share
     git clone https://github.com/jeroenvermeulen/clusterstat-daemon.git
     cp /usr/share/clusterstat-daemon/includes/config.php.dist /usr/share/clusterstat-daemon/includes/config.php
-    ln -sfn /usr/share/clusterstat-daemon/clusterstatd /etc/init.d/clusterstatd
-    update-rc.d clusterstatd defaults
-    service clusterstatd start
+    cp /usr/share/clusterstat-daemon/docs/upstart/clusterstatd.conf /etc/init/clusterstatd.conf
+    initctl reload-configuration
+    initctl start clusterstatd
 
 
-Install via ZIP on (older) Ubuntu
----------------------------------
+Install via ZIP on (older) Ubuntu (SysVinit)
+--------------------------------------------
 
     apt-get install unzip wget php5-cli php5-sqlite debian-helper-scripts
 
@@ -31,10 +33,9 @@ Install via ZIP on (older) Ubuntu
     unzip clusterstat-daemon.zip
     mv clusterstat-daemon-master clusterstat-daemon
     cp /usr/share/clusterstat-daemon/includes/config.php.dist /usr/share/clusterstat-daemon/includes/config.php
-    ln -sfn /usr/share/clusterstat-daemon/clusterstatd /etc/init.d/clusterstatd
+    cp /usr/share/clusterstat-daemon/docs/sysvinit/clusterstatd /etc/init.d/clusterstatd
     update-rc.d clusterstatd defaults
     service clusterstatd start
-
 
 Install from GitHub on Redhat / CentOS
 --------------------------------------
@@ -45,6 +46,6 @@ Install from GitHub on Redhat / CentOS
     cd /usr/share
     git clone https://github.com/jeroenvermeulen/clusterstat-daemon.git
     cp /usr/share/clusterstat-daemon/includes/config.php.dist /usr/share/clusterstat-daemon/includes/config.php
-    ln -sfn /usr/share/clusterstat-daemon/clusterstatd /etc/init.d/clusterstatd
+    cp /usr/share/clusterstat-daemon/docs/sysvinit/clusterstatd /etc/init.d/clusterstatd
     chkconfig clusterstatd on
     service clusterstatd start
