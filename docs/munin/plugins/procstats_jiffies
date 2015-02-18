@@ -1,0 +1,13 @@
+#!/bin/bash
+#
+# Install:
+#     copy this file to:  /etc/munin/plugins/procstats_jiffies
+#
+# To test:
+#     munin-run procstats_jiffies config
+#     munin-run procstats_jiffies
+#
+# To apply changes:
+#     service munin-node reload
+#
+curl --user stats:letmein --max-time 5 --silent http://127.0.0.1:8888/procstats/munin/jiffies/?$1

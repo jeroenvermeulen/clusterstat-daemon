@@ -1,0 +1,13 @@
+#!/bin/bash
+#
+# Install:
+#     copy this file to:  /etc/munin/plugins/procstats_procs
+#
+# To test:
+#     munin-run procstats_procs config
+#     munin-run procstats_procs
+#
+# To apply changes:
+#     service munin-node reload
+#
+curl --user stats:letmein --max-time 5 --silent http://127.0.0.1:8888/procstats/munin/procs/?$1
