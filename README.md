@@ -1,7 +1,7 @@
 ClusterStat Daemon
 ==================
 
-**We are sorry but we cannot offer customer support for this software, and it is provided "as-is" for free. We use it at a number of big servers and it works well.**
+**We are sorry but we cannot offer customer support for this software, and it is provided "as-is" for free. We use it at a number of servers and it works well.**
 
 Daemon for gathering server process statistics. Includes a standalone Pure PHP webserver.
 
