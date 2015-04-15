@@ -1,6 +1,8 @@
 ClusterStat Daemon
 ==================
 
+**We are sorry but we cannot offer customer support for this software, and it is provided "as-is" for free. We use it at a number of big servers and it works well.**
+
 Daemon for gathering server process statistics. Includes a standalone Pure PHP webserver.
 
 Currently the main function of the daemon is counting used 'jiffies' by processes. Jiffies are processor time units. In most cases one jiffy the 1/100th of a second (10 milliseconds) of the power of one CPU core.
