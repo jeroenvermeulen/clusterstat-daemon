@@ -291,7 +291,7 @@ class ProcStats {
             }
             if ( $config ) {
                 if ( 'counter' == $key ) {
-                    $result .= "graph_title CPU Usage\n";
+                    $result .= "graph_title CPU Usage per User\n";
                     $result .= "graph_vlabel jiffies\n";
                     $result .= "graph_info CPU usage per user. 100 jiffies = 1 full CPU core.\n";
                     $result .= "graph_args --upper-limit 800 --lower-limit 0 --rigid --slope-mode --units-exponent 1\n";
