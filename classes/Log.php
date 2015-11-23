@@ -32,11 +32,12 @@ class Log {
     /**
      * Private properties
      */
-    private static $_module = 'MAIN';
-    private static $_stdOut = null;
-    private static $_stdErr = null;
-    private static $_logDoty = null;
-    private static $_logClientPidCallback = null;
+    protected static $_initialized = false;
+    protected static $_module = 'MAIN';
+    protected static $_stdOut = null;
+    protected static $_stdErr = null;
+    protected static $_logDoty = null;
+    protected static $_logClientPidCallback = null;
 
     /**
      * Sets the name of the current module that uses the log
@@ -170,6 +171,15 @@ class Log {
      */
     private static function _checkFileDescriptors() {
         try {
+            if ( ! self::$_initialized ) {
+                if ( class_exists('Config') && Config::get('log_application') ) {
+                    self::$_stdOut = fopen(Config::get('log_application'), 'ab');
+                }
+                if ( class_exists('Config') && Config::get('log_error') ) {
+                    self::$_stdErr = fopen(Config::get('log_error'), 'ab');
+                }
+                self::$_initialized = true;
+            }
             if(class_exists('Daemonizer') && Daemonizer::$daemonized && is_resource(Daemonizer::$stdout) && is_resource(Daemonizer::$stderr)) {
                 if (!is_resource(self::$_stdOut)) {
                     self::$_stdOut = Daemonizer::$stdout;
