@@ -185,7 +185,6 @@ class Log {
                     self::$_stdErr = fopen('php://stderr', 'wb');
                 }
             } elseif(!is_null(Config::get('log_application')) && !is_null(Config::get('log_error'))) {
-echo "opening logs\n";
                 if(!is_resource(self::$_stdOut)) {
                     self::$_stdOut = fopen(Config::get('log_application'), 'ab');
                 }
