@@ -60,10 +60,22 @@ class Timer {
         foreach(self::$_timers as &$timer) {
             if($timer['last_run']+$timer['timeout']<microtime(true)) {
                 try {
-                    call_user_func($timer['callback']);
+                    call_user_func( $timer['callback'] );
                 } catch(Exception $e) {
-                    Log::error( "Error running timer function {$timer['callback']}: ".$e->getMessage() );
-                    Log::info( "Timer function {$timer['callback']} triggered an error" );
+                    $name = '';
+                    if ( is_array($timer['callback']) ) {
+                        foreach( $timer['callback'] as $item ) {
+                            if ( is_object($item) ) {
+                                $name .= get_class($item) . '::';
+                            } else {
+                                $name .= $item;
+                            }
+                        }
+                    } else {
+                        $name = $timer['callback'];
+                    }
+                    Log::error( sprintf( "Error running timer function %s: %s", $name, $e->getMessage() ) );
+                    Log::info( sprintf( "Timer function %s triggered an error", $name ) );
                     return;
                 }
                 // Also update last_run on error so the timer doesn't keep firing when errors happen.
