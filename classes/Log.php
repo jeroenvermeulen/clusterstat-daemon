@@ -54,7 +54,7 @@ class Log {
      * @return string Formatted log line that was written to the log
      */
     public static function info($line) {
-        if(!is_resource(self::$_stdOut)) {
+        if ( !is_resource(self::$_stdOut) ) {
             self::_checkFileDescriptors();
         }
         return self::_writeMessage($line, self::$_stdOut);
@@ -171,17 +171,34 @@ class Log {
     private static function _checkFileDescriptors() {
         try {
             if(class_exists('Daemonizer') && Daemonizer::$daemonized && is_resource(Daemonizer::$stdout) && is_resource(Daemonizer::$stderr)) {
-                if(!is_resource(self::$_stdOut)) self::$_stdOut = Daemonizer::$stdout;
-                if(!is_resource(self::$_stdErr)) self::$_stdErr = Daemonizer::$stderr;
+                if (!is_resource(self::$_stdOut)) {
+                    self::$_stdOut = Daemonizer::$stdout;
+                }
+                if (!is_resource(self::$_stdErr)) {
+                    self::$_stdErr = Daemonizer::$stderr;
+                }
             } elseif(class_exists('Daemonizer') && !Daemonizer::$daemonized) {
-                if(!is_resource(self::$_stdOut)) self::$_stdOut = fopen('php://stdout', 'wb');
-                if(!is_resource(self::$_stdErr)) self::$_stdErr = fopen('php://stderr', 'wb');
+                if(!is_resource(self::$_stdOut)) {
+                    self::$_stdOut = fopen('php://stdout', 'wb');
+                }
+                if(!is_resource(self::$_stdErr)) {
+                    self::$_stdErr = fopen('php://stderr', 'wb');
+                }
             } elseif(!is_null(Config::get('log_application')) && !is_null(Config::get('log_error'))) {
-                if(!is_resource(self::$_stdOut)) self::$_stdOut = fopen(Config::get('log_application'), 'ab');
-                if(!is_resource(self::$_stdErr)) self::$_stdErr = fopen(Config::get('log_error'), 'ab');
+echo "opening logs\n";
+                if(!is_resource(self::$_stdOut)) {
+                    self::$_stdOut = fopen(Config::get('log_application'), 'ab');
+                }
+                if(!is_resource(self::$_stdErr)) {
+                    self::$_stdErr = fopen(Config::get('log_error'), 'ab');
+                }
             } else {
-                if(!is_resource(self::$_stdOut)) self::$_stdOut = fopen('/dev/null', 'wb');
-                if(!is_resource(self::$_stdErr)) self::$_stdErr = fopen('/dev/null', 'wb');
+                if(!is_resource(self::$_stdOut)) {
+                    self::$_stdOut = fopen('/dev/null', 'wb');
+                }
+                if(!is_resource(self::$_stdErr)) {
+                    self::$_stdErr = fopen('/dev/null', 'wb');
+                }
             }
         }
         catch ( Exception $e ) {
