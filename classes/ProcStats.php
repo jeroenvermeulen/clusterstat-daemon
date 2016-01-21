@@ -263,7 +263,7 @@ class ProcStats {
                 if ( isset($stats[$user]['TOTAL']['counter'])
                      && $stats[$user]['TOTAL']['counter'] > 100 )
                 {
-                    if ( 'config' == $requestInfo['QUERY_STRING'] ) {
+                    if ( $config ) {
                         $result   .= sprintf( "%s.label %s\n", $fieldName, $user );
                         $result   .= sprintf( "%s.min 0\n", $fieldName );
                         $result   .= sprintf( "%s.draw LINE1\n", $fieldName );
@@ -277,32 +277,31 @@ class ProcStats {
                     }
                 }
             }
+            $allTotal = $allTotal % pow(2,31); // Make sure it fits in an signed 32 bits integer, wrap around if not.
             if ( $config ) {
+                $result .= "graph_category system\n";
+                $result .= "graph_scale no\n";
                 $result .= "TOTAL.label TOTAL\n";
                 $result .= "TOTAL.min 0\n";
                 $result .= "TOTAL.draw LINE1\n";
                 $result .= "TOTAL.colour cccccc\n";
                 if ( 'counter' == $key ) {
+                    // CPU usage in Jiffies
                     $result .= "TOTAL.type DERIVE\n";
                     $result .= "TOTAL.max 3200\n";
-                }
-            } else {
-                $result .= sprintf( "%s.value %d\n", 'TOTAL', $allTotal );
-            }
-            if ( $config ) {
-                if ( 'counter' == $key ) {
                     $result .= "graph_title CPU Usage per User\n";
                     $result .= "graph_vlabel jiffies\n";
                     $result .= "graph_info CPU usage per user. 100 jiffies = 1 full CPU core.\n";
                     $result .= "graph_args --upper-limit 800 --lower-limit 0 --rigid --slope-mode --units-exponent 1\n";
                 } elseif ( 'procs' == $key ) {
+                    // Number of running processes
                     $result .= "graph_title Running Processes\n";
                     $result .= "graph_vlabel processes\n";
                     $result .= "graph_info Running processes per user.\n";
                     $result .= "graph_args --lower-limit 0 --slope-mode --units-exponent 1\n";
                 }
-                $result .= "graph_category system\n";
-                $result .= "graph_scale no\n";
+            } else {
+                $result .= sprintf( "%s.value %d\n", 'TOTAL', $allTotal );
             }
             unset($user);
             unset($allTotal);
