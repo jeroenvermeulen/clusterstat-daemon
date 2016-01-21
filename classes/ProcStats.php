@@ -45,7 +45,8 @@ class ProcStats {
     protected $_statFifo     = array();
     protected $_statFifoLen  = 3;
     protected $_workDir      = null;
-    protected $_dbData       = null; // is filled by _getFromDatabase and timerCollectStats
+    protected $_dbData       = null;  // is filled by _getFromDatabase and timerCollectStats
+    protected $_maxJiffies   = 25600; // Let's say our server has max 256 cpu threads;
 
     /**
      * Constructor - initialize some data.
@@ -107,6 +108,7 @@ class ProcStats {
                                 $diffJiff = max( 0, $diffJiff );
                                 $result[$user][$process]['jiff']  = $diffJiff;
                                 $result[$user]['TOTAL']['jiff']   += $diffJiff;
+
                             }
                             if ( !empty($endStats[$uid][$process]['procs']) )
                             {
@@ -114,7 +116,8 @@ class ProcStats {
                                 $result[$user]['TOTAL']['procs']    += $endStats[$uid][$process]['procs'];
                             }
                             $result[$user][$process]['counter'] = $this->_dbData[$uid][$process]['counter'];
-                            $result[$user]['TOTAL']['counter']  += $this->_dbData[$uid][$process]['counter'];
+                            $result[$user]['TOTAL']['counter'] += $this->_dbData[$uid][$process]['counter'];
+                            $result[$user]['TOTAL']['counter'] = $this->_wrapFix( $result[$user]['TOTAL']['counter'] );
                         }
                         unset( $nil2 );
                     }
@@ -155,6 +158,7 @@ class ProcStats {
                 $result .= sprintf( '%s:%d ', $user, $stats[$user]['TOTAL']['counter'] );
                 $allTotal += $stats[$user]['TOTAL']['counter'];
             }
+            $allTotal = $this->_wrapFix( $allTotal );
             $result .= sprintf( '%s:%d ', 'TOTAL', $allTotal );
             unset($allTotal);
             unset($users);
@@ -181,6 +185,7 @@ class ProcStats {
                 $result .= sprintf( '%s:%d ', $user, $stats[$user]['TOTAL']['procs'] );
                 $allTotal += $stats[$user]['TOTAL']['procs'];
             }
+            $allTotal = $this->_wrapFix( $allTotal );
             $result .= sprintf( '%s:%d ', 'TOTAL', $allTotal );
             unset($allTotal);
             unset($users);
@@ -213,6 +218,7 @@ class ProcStats {
                     unset($value);
                 }
             }
+            $allTotal = $this->_wrapFix( $allTotal );
             $result .= sprintf( '%s=%dc ', 'TOTAL', $allTotal );
             unset($user);
             unset($allTotal);
@@ -248,6 +254,7 @@ class ProcStats {
 
         $result .= sprintf( "# You can fetch the values from:  %s\n", $baseUrl );
         $result .= sprintf( "# You can fetch the config from:  %s?config\n", $baseUrl );
+
         $stats = $this->getProcStats();
         if ( is_array($stats) )
         {
@@ -269,7 +276,7 @@ class ProcStats {
                         $result   .= sprintf( "%s.draw LINE1\n", $fieldName );
                         if ( 'counter' == $key ) {
                             $result   .= sprintf( "%s.type DERIVE\n", $fieldName );
-                            $result   .= sprintf( "%s.max 3200\n", $fieldName );
+                            $result   .= sprintf( "%s.max %d\n", $fieldName, $this->_maxJiffies );
                         }
                     } else {
                         $result   .= sprintf( "%s.value %d\n", $fieldName, $stats[$user]['TOTAL'][$key] );
@@ -277,24 +284,26 @@ class ProcStats {
                     }
                 }
             }
-            $allTotal = $allTotal % pow(2,31); // Make sure it fits in an signed 32 bits integer, wrap around if not.
+            $allTotal = $this->_wrapFix( $allTotal );
             if ( $config ) {
                 $result .= "graph_category system\n";
                 $result .= "graph_scale no\n";
                 $result .= "TOTAL.label TOTAL\n";
-                $result .= "TOTAL.min 0\n";
                 $result .= "TOTAL.draw LINE1\n";
                 $result .= "TOTAL.colour cccccc\n";
                 if ( 'counter' == $key ) {
                     // CPU usage in Jiffies
                     $result .= "TOTAL.type DERIVE\n";
-                    $result .= "TOTAL.max 3200\n";
+                    $result .= "TOTAL.min 0\n";
+                    $result .= sprintf( "TOTAL.max %d\n", $this->_maxJiffies );
                     $result .= "graph_title CPU Usage per User\n";
                     $result .= "graph_vlabel jiffies\n";
                     $result .= "graph_info CPU usage per user. 100 jiffies = 1 full CPU core.\n";
                     $result .= "graph_args --upper-limit 800 --lower-limit 0 --rigid --slope-mode --units-exponent 1\n";
                 } elseif ( 'procs' == $key ) {
                     // Number of running processes
+                    $result .= "TOTAL.min 0\n";
+                    $result .= "TOTAL.max 245760\n"; // cat /proc/sys/kernel/pid_max
                     $result .= "graph_title Running Processes\n";
                     $result .= "graph_vlabel processes\n";
                     $result .= "graph_info Running processes per user.\n";
@@ -455,6 +464,7 @@ class ProcStats {
                     // Delta mechanism takes place in _getUserProcStats.
                     // Previous data found in database
                     $this->_dbData[$uid][$process]['counter'] += $userProcStats[$uid][$process]['jiff'];
+                    $this->_dbData[$uid][$process]['counter'] = $this->_wrapFix( $this->_dbData[$uid][$process]['counter'] );
                     unset($delta);
                 }
                 else
@@ -953,6 +963,18 @@ class ProcStats {
     protected function _userProcCmp($a, $b)
     {
         return $b['counter'] - $a['counter'];
+    }
+
+    /**
+     * Make sure the number fits in an unsigned 32 bits integer, wrap around if not.
+     *
+     * @param int|float $number
+     * @return int
+     */
+    protected function _wrapFix( $number )
+    {
+        $number = $number % pow(2,32);
+        return $number;
     }
 
 }
