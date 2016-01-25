@@ -973,7 +973,7 @@ class ProcStats {
      */
     protected function _wrapFix( $number )
     {
-        $number = $number % pow(2,32);
+        $number = $number % pow(2,64);
         return $number;
     }
 
