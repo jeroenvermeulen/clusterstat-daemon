@@ -275,7 +275,7 @@ class ProcStats {
                         $result   .= sprintf( "%s.min 0\n", $fieldName );
                         $result   .= sprintf( "%s.draw LINE1\n", $fieldName );
                         if ( 'counter' == $key ) {
-                            $result   .= sprintf( "%s.type DERIVE\n", $fieldName );
+                            $result   .= sprintf( "%s.type COUNTER\n", $fieldName );
                             $result   .= sprintf( "%s.max %d\n", $fieldName, $this->_maxJiffies );
                         }
                     } else {
@@ -293,7 +293,7 @@ class ProcStats {
                 $result .= "TOTAL.colour cccccc\n";
                 if ( 'counter' == $key ) {
                     // CPU usage in Jiffies
-                    $result .= "TOTAL.type DERIVE\n";
+                    $result .= "TOTAL.type COUNTER\n";
                     $result .= "TOTAL.min 0\n";
                     $result .= sprintf( "TOTAL.max %d\n", $this->_maxJiffies );
                     $result .= "graph_title CPU Usage per User\n";
@@ -973,7 +973,7 @@ class ProcStats {
      */
     protected function _wrapFix( $number )
     {
-        $number = $number % pow(2,63);
+        $number = $number % pow(2,32);
         return $number;
     }
 
