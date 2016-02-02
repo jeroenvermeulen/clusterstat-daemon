@@ -261,6 +261,7 @@ class ProcStats {
             $users = array_keys($stats);
             sort( $users );
             $allTotal = 0;
+            $totalCdef = '0';
             foreach ( $users as $user )
             {
                 $fieldName = $user;
@@ -278,12 +279,13 @@ class ProcStats {
                             $result   .= sprintf( "%s.type COUNTER\n", $fieldName );
                             $result   .= sprintf( "%s.max %d\n", $fieldName, $this->_maxJiffies );
                         }
+                        $totalCdef .= sprintf( ',%s,+', $fieldName );
                     } else {
                         $result   .= sprintf( "%s.value %d\n", $fieldName, $stats[$user]['TOTAL'][$key] );
                         $allTotal += $stats[$user]['TOTAL'][$key];
                     }
                 }
-            }
+            } // end foreach( $users )
             $allTotal = $this->_wrapFix( $allTotal );
             if ( $config ) {
                 $result .= "graph_category system\n";
@@ -291,6 +293,7 @@ class ProcStats {
                 $result .= "TOTAL.label TOTAL\n";
                 $result .= "TOTAL.draw LINE1\n";
                 $result .= "TOTAL.colour cccccc\n";
+                $result .= sprintf( "TOTAL.cdef %s\n", $totalCdef );
                 if ( 'counter' == $key ) {
                     // CPU usage in Jiffies
                     $result .= "TOTAL.type COUNTER\n";
