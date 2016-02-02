@@ -265,6 +265,7 @@ class ProcStats {
             foreach ( $users as $user )
             {
                 $fieldName = $user;
+                $fieldName = preg_replace('/[^a-z]/','',$fieldName);
                 if ( 'root' == $fieldName ) {
                     $fieldName = 'uroot';
                 }
