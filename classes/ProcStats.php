@@ -261,7 +261,7 @@ class ProcStats {
             $users = array_keys($stats);
             sort( $users );
             $allTotal = 0;
-            $totalCdef = '0';
+            $totalCdef = '';
             foreach ( $users as $user )
             {
                 $fieldName = $user;
@@ -279,7 +279,11 @@ class ProcStats {
                             $result   .= sprintf( "%s.type COUNTER\n", $fieldName );
                             $result   .= sprintf( "%s.max %d\n", $fieldName, $this->_maxJiffies );
                         }
-                        $totalCdef .= sprintf( ',%s,+', $fieldName );
+                        if ( empty($totalCdef) ) {
+                            $totalCdef = $fieldName;
+                        } else {
+                            $totalCdef .= sprintf( ',%s,+', $fieldName );
+                        }
                     } else {
                         $result   .= sprintf( "%s.value %d\n", $fieldName, $stats[$user]['TOTAL'][$key] );
                         $allTotal += $stats[$user]['TOTAL'][$key];
