@@ -261,7 +261,37 @@ class ProcStats {
             $users = array_keys($stats);
             sort( $users );
             $allTotal = 0;
-            $totalCdef = '0';
+            $totalCdef = '';
+            foreach ( $users as $user )
+            {
+                $fieldName = $user;
+                $fieldName = preg_replace('/[^a-z]/','',$fieldName);
+                if ( 'root' == $fieldName ) {
+                    $fieldName = 'uroot';
+                }
+                if ( isset($stats[$user]['TOTAL']['counter'])
+                     && $stats[$user]['TOTAL']['counter'] > 100 )
+                {
+                    if ( $config ) {
+                        $result   .= sprintf( "%s.label %s\n", $fieldName, $user );
+                        $result   .= sprintf( "%s.min 0\n", $fieldName );
+                        $result   .= sprintf( "%s.draw LINE1\n", $fieldName );
+                        if ( 'counter' == $key ) {
+                            $result   .= sprintf( "%s.type COUNTER\n", $fieldName );
+                            $result   .= sprintf( "%s.max %d\n", $fieldName, $this->_maxJiffies );
+                        }
+                        if ( empty($totalCdef) ) {
+                            $totalCdef = $fieldName;
+                        } else {
+                            $totalCdef .= sprintf( ',%s,+', $fieldName );
+                        }
+                    } else {
+                        $result   .= sprintf( "%s.value %d\n", $fieldName, $stats[$user]['TOTAL'][$key] );
+                        $allTotal += $stats[$user]['TOTAL'][$key];
+                    }
+                }
+            } // end foreach( $users )
+            $allTotal = $this->_wrapFix( $allTotal );
             if ( $config ) {
                 $result .= "graph_category system\n";
                 $result .= "graph_scale no\n";
