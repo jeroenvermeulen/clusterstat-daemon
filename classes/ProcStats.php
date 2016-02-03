@@ -91,16 +91,16 @@ class ProcStats {
                     $result[$user]['TOTAL']['procs'] = 0;
 
                     if (  isset($startStats[$uid])
-                       && is_array($startStats[$uid])
-                       )
+                        && is_array($startStats[$uid])
+                    )
                     {
                         foreach ( $this->_dbData[$uid] as $process => &$nil2 )
                         {
                             $result[$user][$process]['jiff'] = 0;
                             $result[$user][$process]['procs'] = 0;
                             if (  !empty($startStats[$uid][$process]['jiff'])
-                               && !empty($endStats[$uid][$process]['jiff'])
-                               )
+                                && !empty($endStats[$uid][$process]['jiff'])
+                            )
                             {
                                 $timeDiff = $endStats[$uid][$process]['time'] - $startStats[$uid][$process]['time'];
                                 $diffJiff = $endStats[$uid][$process]['jiff'] - $startStats[$uid][$process]['jiff'];
@@ -258,6 +258,31 @@ class ProcStats {
         $stats = $this->getProcStats();
         if ( is_array($stats) )
         {
+            if ( $config ) {
+                $result .= "graph_category system\n";
+                $result .= "graph_scale no\n";
+                $result .= "TOTAL.label TOTAL\n";
+                $result .= "TOTAL.draw LINE1\n";
+                $result .= "TOTAL.colour cccccc\n";
+                if ('counter' == $key) {
+                    // CPU usage in Jiffies
+                    $result .= "TOTAL.type COUNTER\n";
+                    $result .= "TOTAL.min 0\n";
+                    $result .= sprintf("TOTAL.max %d\n", $this->_maxJiffies);
+                    $result .= "graph_title CPU Usage per User\n";
+                    $result .= "graph_vlabel jiffies\n";
+                    $result .= "graph_info CPU usage per user. 100 jiffies = 1 full CPU core.\n";
+                    $result .= "graph_args --upper-limit 800 --lower-limit 0 --rigid --slope-mode --units-exponent 1\n";
+                } elseif ('procs' == $key) {
+                    // Number of running processes
+                    $result .= "TOTAL.min 0\n";
+                    $result .= "TOTAL.max 245760\n"; // cat /proc/sys/kernel/pid_max
+                    $result .= "graph_title Running Processes\n";
+                    $result .= "graph_vlabel processes\n";
+                    $result .= "graph_info Running processes per user.\n";
+                    $result .= "graph_args --lower-limit 0 --slope-mode --units-exponent 1\n";
+                }
+            }
             $users = array_keys($stats);
             sort( $users );
             $allTotal = 0;
@@ -270,7 +295,7 @@ class ProcStats {
                     $fieldName = 'uroot';
                 }
                 if ( isset($stats[$user]['TOTAL']['counter'])
-                     && $stats[$user]['TOTAL']['counter'] > 100 )
+                    && $stats[$user]['TOTAL']['counter'] > 100 )
                 {
                     if ( $config ) {
                         $result   .= sprintf( "%s.label %s\n", $fieldName, $user );
@@ -293,59 +318,9 @@ class ProcStats {
             } // end foreach( $users )
             $allTotal = $this->_wrapFix( $allTotal );
             if ( $config ) {
-                $result .= "graph_category system\n";
-                $result .= "graph_scale no\n";
-                $result .= "TOTAL.label TOTAL\n";
-                $result .= "TOTAL.draw LINE1\n";
-                $result .= "TOTAL.colour cccccc\n";
-                if ( 'counter' == $key ) {
-                    // CPU usage in Jiffies
-                    $result .= "TOTAL.type COUNTER\n";
-                    $result .= "TOTAL.min 0\n";
-                    $result .= sprintf( "TOTAL.max %d\n", $this->_maxJiffies );
-                    $result .= "graph_title CPU Usage per User\n";
-                    $result .= "graph_vlabel jiffies\n";
-                    $result .= "graph_info CPU usage per user. 100 jiffies = 1 full CPU core.\n";
-                    $result .= "graph_args --upper-limit 800 --lower-limit 0 --rigid --slope-mode --units-exponent 1\n";
-                } elseif ( 'procs' == $key ) {
-                    // Number of running processes
-                    $result .= "TOTAL.min 0\n";
-                    $result .= "TOTAL.max 245760\n"; // cat /proc/sys/kernel/pid_max
-                    $result .= "graph_title Running Processes\n";
-                    $result .= "graph_vlabel processes\n";
-                    $result .= "graph_info Running processes per user.\n";
-                    $result .= "graph_args --lower-limit 0 --slope-mode --units-exponent 1\n";
-                }
-            }
-            foreach ( $users as $user )
-            {
-                $fieldName = $user;
-                if ( 'root' == $fieldName ) {
-                    $fieldName = 'uroot';
-                }
-                if ( isset($stats[$user]['TOTAL']['counter'])
-                     && $stats[$user]['TOTAL']['counter'] > 100 )
-                {
-                    if ( $config ) {
-                        $result   .= sprintf( "%s.label %s\n", $fieldName, $user );
-                        $result   .= sprintf( "%s.min 0\n", $fieldName );
-                        $result   .= sprintf( "%s.draw LINE1\n", $fieldName );
-                        if ( 'counter' == $key ) {
-                            $result   .= sprintf( "%s.type COUNTER\n", $fieldName );
-                            $result   .= sprintf( "%s.max %d\n", $fieldName, $this->_maxJiffies );
-                        }
-                        $totalCdef .= sprintf( ',%s,+', $fieldName );
-                    } else {
-                        $result   .= sprintf( "%s.value %d\n", $fieldName, $stats[$user]['TOTAL'][$key] );
-                        $allTotal += $stats[$user]['TOTAL'][$key];
-                    }
-                }
-            } // end foreach( $users )
-            $allTotal = $this->_wrapFix( $allTotal );
-            if ( $config ) {
                 $result .= sprintf( "TOTAL.cdef %s\n", $totalCdef );
             } else {
-                // $result .= sprintf( "%s.value %d\n", 'TOTAL', $allTotal );
+                //$result .= sprintf( "%s.value %d\n", 'TOTAL', $allTotal );
             }
             unset($user);
             unset($allTotal);
@@ -389,8 +364,8 @@ class ProcStats {
             foreach ( $users as $user )
             {
                 if (  isset($stats[$user]['TOTAL']['counter'])
-                   && isset($stats[$user]['TOTAL']['jiff'])
-                   )
+                    && isset($stats[$user]['TOTAL']['jiff'])
+                )
                 {
                     $counterTotal += $stats[$user]['TOTAL']['counter'];
                     $jiffTotal    += $stats[$user]['TOTAL']['jiff'];
@@ -413,8 +388,8 @@ class ProcStats {
                 foreach ( $procs as $process )
                 {
                     if (  isset($stats[$user][$process]['counter'])
-                       && isset($stats[$user][$process]['jiff'])
-                       )
+                        && isset($stats[$user][$process]['jiff'])
+                    )
                     {
                         $counter      = $stats[$user][$process]['counter'];
                         $counterPerc  = $counter * 100 / $counterTotal;
@@ -651,10 +626,10 @@ class ProcStats {
                     foreach ($userdata as $row)
                     {
                         if (  isset($row['linuxuser'])
-                           && isset($row['process'])
-                           && isset($row['lastvalue'])
-                           && isset($row['counter'])
-                           )
+                            && isset($row['process'])
+                            && isset($row['lastvalue'])
+                            && isset($row['counter'])
+                        )
                         {
                             // Set values to bound variables
                             $linuxuser   = $row['linuxuser'];
