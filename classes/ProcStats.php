@@ -262,6 +262,31 @@ class ProcStats {
             sort( $users );
             $allTotal = 0;
             $totalCdef = '0';
+            if ( $config ) {
+                $result .= "graph_category system\n";
+                $result .= "graph_scale no\n";
+                $result .= "TOTAL.label TOTAL\n";
+                $result .= "TOTAL.draw LINE1\n";
+                $result .= "TOTAL.colour cccccc\n";
+                if ( 'counter' == $key ) {
+                    // CPU usage in Jiffies
+                    $result .= "TOTAL.type COUNTER\n";
+                    $result .= "TOTAL.min 0\n";
+                    $result .= sprintf( "TOTAL.max %d\n", $this->_maxJiffies );
+                    $result .= "graph_title CPU Usage per User\n";
+                    $result .= "graph_vlabel jiffies\n";
+                    $result .= "graph_info CPU usage per user. 100 jiffies = 1 full CPU core.\n";
+                    $result .= "graph_args --upper-limit 800 --lower-limit 0 --rigid --slope-mode --units-exponent 1\n";
+                } elseif ( 'procs' == $key ) {
+                    // Number of running processes
+                    $result .= "TOTAL.min 0\n";
+                    $result .= "TOTAL.max 245760\n"; // cat /proc/sys/kernel/pid_max
+                    $result .= "graph_title Running Processes\n";
+                    $result .= "graph_vlabel processes\n";
+                    $result .= "graph_info Running processes per user.\n";
+                    $result .= "graph_args --lower-limit 0 --slope-mode --units-exponent 1\n";
+                }
+            }
             foreach ( $users as $user )
             {
                 $fieldName = $user;
@@ -288,32 +313,9 @@ class ProcStats {
             } // end foreach( $users )
             $allTotal = $this->_wrapFix( $allTotal );
             if ( $config ) {
-                $result .= "graph_category system\n";
-                $result .= "graph_scale no\n";
-                $result .= "TOTAL.label TOTAL\n";
-                $result .= "TOTAL.draw LINE1\n";
-                $result .= "TOTAL.colour cccccc\n";
                 $result .= sprintf( "TOTAL.cdef %s\n", $totalCdef );
-                if ( 'counter' == $key ) {
-                    // CPU usage in Jiffies
-                    $result .= "TOTAL.type COUNTER\n";
-                    $result .= "TOTAL.min 0\n";
-                    $result .= sprintf( "TOTAL.max %d\n", $this->_maxJiffies );
-                    $result .= "graph_title CPU Usage per User\n";
-                    $result .= "graph_vlabel jiffies\n";
-                    $result .= "graph_info CPU usage per user. 100 jiffies = 1 full CPU core.\n";
-                    $result .= "graph_args --upper-limit 800 --lower-limit 0 --rigid --slope-mode --units-exponent 1\n";
-                } elseif ( 'procs' == $key ) {
-                    // Number of running processes
-                    $result .= "TOTAL.min 0\n";
-                    $result .= "TOTAL.max 245760\n"; // cat /proc/sys/kernel/pid_max
-                    $result .= "graph_title Running Processes\n";
-                    $result .= "graph_vlabel processes\n";
-                    $result .= "graph_info Running processes per user.\n";
-                    $result .= "graph_args --lower-limit 0 --slope-mode --units-exponent 1\n";
-                }
             } else {
-                $result .= sprintf( "%s.value %d\n", 'TOTAL', $allTotal );
+                // $result .= sprintf( "%s.value %d\n", 'TOTAL', $allTotal );
             }
             unset($user);
             unset($allTotal);
