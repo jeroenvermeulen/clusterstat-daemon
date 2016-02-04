@@ -316,11 +316,11 @@ class ProcStats {
                     }
                 }
             } // end foreach( $users )
-            $allTotal = $this->_wrapFix( $allTotal );
             if ( $config ) {
                 $result .= sprintf( "TOTAL.cdef %s\n", $totalCdef );
             } else {
-                //$result .= sprintf( "%s.value %d\n", 'TOTAL', $allTotal );
+                $allTotal = $this->_wrapFix( $allTotal );
+                $result .= sprintf( "%s.value %d\n", 'TOTAL', $allTotal );
             }
             unset($user);
             unset($allTotal);
