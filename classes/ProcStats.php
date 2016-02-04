@@ -266,7 +266,7 @@ class ProcStats {
                 $result .= "TOTAL.colour cccccc\n";
                 if ('counter' == $key) {
                     // CPU usage in Jiffies
-                    $result .= "TOTAL.type COUNTER\n";
+                    $result .= "TOTAL.type DERIVE\n";
                     $result .= "TOTAL.min 0\n";
                     $result .= sprintf("TOTAL.max %d\n", $this->_maxJiffies);
                     $result .= "graph_title CPU Usage per User\n";
