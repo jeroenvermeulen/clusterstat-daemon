@@ -325,8 +325,10 @@ class ProcStats {
             unset($user);
             unset($allTotal);
             unset($users);
+            unset($totalCdef);
         }
         unset($urlSplit);
+        unset($config);
         unset($baseUrl);
         unset($stats);
         return $result;
