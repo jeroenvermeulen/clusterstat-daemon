@@ -302,7 +302,7 @@ class ProcStats {
                         $result   .= sprintf( "%s.min 0\n", $fieldName );
                         $result   .= sprintf( "%s.draw LINE1\n", $fieldName );
                         if ( 'counter' == $key ) {
-                            $result   .= sprintf( "%s.type COUNTER\n", $fieldName );
+                            $result   .= sprintf( "%s.type DERIVE\n", $fieldName );
                             $result   .= sprintf( "%s.max %d\n", $fieldName, $this->_maxJiffies );
                         }
                         if ( empty($totalCdef) ) {
