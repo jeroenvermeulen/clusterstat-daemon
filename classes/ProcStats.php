@@ -726,6 +726,10 @@ class ProcStats {
             $uid      = $aProcInfo['uid'];
             $procName = $aProcInfo['name'];
 
+            if ( !isset( $result[$uid] ) )
+            {
+                $result[$uid] = array();
+            }
             if ( !isset( $result[$uid][$procName] ) )
             {
                 $result[$uid][$procName]['procs'] = 0;
