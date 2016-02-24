@@ -723,33 +723,32 @@ class ProcStats {
 
         foreach ( $statData as $pid => $aProcInfo )
         {
-            $uid      = $aProcInfo['uid'];
-            $procName = $aProcInfo['name'];
+            if ( isset($aProcInfo['uid']) ) {
+                $uid      = $aProcInfo['uid'];
+                $procName = $aProcInfo['name'];
 
-            if ( !isset( $result[$uid] ) )
-            {
-                $result[$uid] = array();
-            }
-            if ( !isset( $result[$uid][$procName] ) )
-            {
-                $result[$uid][$procName]['procs'] = 0;
-                $result[$uid][$procName]['jiff'] = 0;
-            }
+                if (!isset($result[$uid])) {
+                    $result[$uid] = array();
+                }
+                if (!isset($result[$uid][$procName])) {
+                    $result[$uid][$procName]['procs'] = 0;
+                    $result[$uid][$procName]['jiff'] = 0;
+                }
 
-            $result[$uid][$procName]['procs']++;
-            $iJiff = $aProcInfo['thisJiff'];
-            if ( isset( $prevStatData[$pid]['thisJiff'] ) )
-            {
-                // Process was already running previous collect time
-                $iJiff = $iJiff - $prevStatData[$pid]['thisJiff'];
-                $iJiff = max( 0, $iJiff ); // make sure it does not get negative
-            }
-            $result[$uid][$procName]['jiff'] += $iJiff;
-            $result[$uid][$procName]['time'] = $aProcInfo['time'];
+                $result[$uid][$procName]['procs']++;
+                $iJiff = $aProcInfo['thisJiff'];
+                if (isset($prevStatData[$pid]['thisJiff'])) {
+                    // Process was already running previous collect time
+                    $iJiff = $iJiff - $prevStatData[$pid]['thisJiff'];
+                    $iJiff = max(0, $iJiff); // make sure it does not get negative
+                }
+                $result[$uid][$procName]['jiff'] += $iJiff;
+                $result[$uid][$procName]['time'] = $aProcInfo['time'];
 
-            unset($uid);
-            unset($procName);
-            unset($iJiff);
+                unset($uid);
+                unset($procName);
+                unset($iJiff);
+            }
         }
         unset($aProcInfo);
 
