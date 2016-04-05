@@ -263,7 +263,7 @@ class ProcStats {
                 $result .= "graph_scale no\n";
                 $result .= "TOTAL.label TOTAL\n";
                 $result .= "TOTAL.draw LINE1\n";
-                $result .= "TOTAL.colour cccccc\n";
+                $result .= "TOTAL.colour eeeeee\n";
                 if ('counter' == $key) {
                     // CPU usage in Jiffies
                     $result .= "TOTAL.type DERIVE\n";
