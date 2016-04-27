@@ -171,7 +171,13 @@ class Daemonizer {
         } else {
             die("Cannot write to temporary directory\r\n\r\n");
         }
-        $_pidFile = is_null($processName) ? array_shift(@explode('.',self::$_scriptName)) : $processName;
+        $_pidFile = $processName;
+        if ( is_null($_pidFile) ) {
+            $scriptNameParts = @explode('.',self::$_scriptName);
+            if ( !empty( $scriptNameParts[0] ) ) {
+                $_pidFile = $scriptNameParts[0];
+            }
+        }
         self::$_pidFile = "{$tmpDir}{$_pidFile}.pid";
     }
 

@@ -1,0 +1,14 @@
+[Unit]
+Description=Cluster Statistics Daemon
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/php /usr/share/clusterstat-daemon/clusterstatd.php start
+ExecReload=/usr/bin/php /usr/share/clusterstat-daemon/clusterstatd.php reload
+ExecStop=/usr/bin/php /usr/share/clusterstat-daemon/clusterstatd.php stop
+# KillMode=process
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
