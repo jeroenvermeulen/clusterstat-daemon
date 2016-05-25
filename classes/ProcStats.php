@@ -23,8 +23,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Class ProcStats
  *
- * The daemon timer runs timerCollectStats every second.
- * The daemon timer runs timerWriteDatabase every 5 minutes, to backup data in case the daemon gets restarted.
+ * The daemon timer runs  timerCollectStats   every second.
+ * The daemon timer runs  timerWriteDatabase  every 5 minutes, to backup data in case the daemon gets restarted.
  *
  * Functions to retrieve collected process statistics data:
  *   - getProcStats           - Returns an array, provides the data for the other data retrieving functions
@@ -462,7 +462,7 @@ class ProcStats {
     public function timerCollectStats()
     {
         $statData = $this->_collectProcStats();
-        //echo $this->_debugTree( $statData ); // Useful for debugging, outputs to log
+        // echo $this->_debugTree( $statData ); // Useful for debugging, outputs to stdout in debug mode
 
         $userProcStats = $this->_getUserProcStats( $statData, $this->_prevStatData );
         $this->_prevStatData = $statData;
@@ -682,6 +682,8 @@ class ProcStats {
      *                        $result[ PID ][ 'thisJiff' ]      = Integer
      *                        $result[ PID ][ 'deadChildJiff' ] = Integer
      *                        $result[ PID ][ 'time' ]          = Integer
+     *                        $result[ PID ][ 'readByes' ]      = Integer
+     *                        $result[ PID ][ 'writeBytes' ]    = Integer
      *                        $result[ PID ][ 'childPids' ]     = Array of Integer
      */
     protected function _collectProcStats()
@@ -764,17 +766,34 @@ class ProcStats {
      */
     protected function _getProcInfo( $pid, &$result )
     {
-        $procStatFile =   $this->_procPath.'/'.$pid.'/stat';
+        $procStatFile   = $this->_procPath.'/'.$pid.'/stat';
         $procStatusFile = $this->_procPath.'/'.$pid.'/status';
+        $procIoFile     = $this->_procPath.'/'.$pid.'/io';
 
         try
         {
-            $uid          = null;
+            $fMicroTime = microtime(true);
+
+            //// Read Stat Data
+            $fh = fopen($procStatFile, 'r');
+            $statLine = fread($fh, 1024);
+            fclose($fh);
+            unset($fh);
+
+            // Read IO Data
+            $fh = fopen($procIoFile, 'r');
+            $ioData = fread($fh, 4096);
+            fclose($fh);
+            unset($fh);
+
+            //// Read Status Data
             $fh           = fopen($procStatusFile, 'r');
             $statusData   = fread($fh, 4096);
             fclose($fh);
             unset($fh);
 
+            //// Process Status Data
+            $uid   = null;
             $match = array();
             if ( preg_match( '/Uid:\s*\d+\s*(\d+)/', $statusData, $match ) )
             {
@@ -788,16 +807,11 @@ class ProcStats {
                 $uid  = fileowner($procStatFile);
             }
             unset($match);
+            unset($statusData);
 
-            $fMicroTime = microtime(true);
-
-            $fh = fopen($procStatFile, 'r');
-            $statLine = fread($fh, 1024);
-            fclose($fh);
-            unset($fh);
-
+            //// Process Stat Data
             $statFields   = explode( ' ', $statLine );
-
+            unset($statLine);
             if ( 17 <= count($statFields) )
             {
                 // For info about the '/proc/PID/stat' fields:
@@ -832,13 +846,26 @@ class ProcStats {
 
                 $result[$pid]['time'] = $fMicroTime;
 
-                unset($statFields);
-                unset($fMicroTime);
                 unset($uid);
                 unset($process);
                 unset($parentPid);
-                unset($pid);
             }
+            unset($statFields);
+
+            //// Process IO Data
+            $ioLines = explode("\n",$ioData);
+            $match = array();
+            foreach( $ioLines as $ioLine ) {
+                if ( preg_match('/read_bytes:\s+(\d+)/',$ioLine,$match) ) {
+                    $result[$pid]['readBytes'] = $match[1];
+                }
+                if ( preg_match('/write_bytes:\s+(\d+)/',$ioLine,$match) ) {
+                    $result[$pid]['writeBytes'] = $match[1];
+                }
+            }
+            unset($match);
+            unset($ioLines);
+            unset($ioData);
         }
         catch ( Exception $e )
         {
@@ -848,6 +875,7 @@ class ProcStats {
 
         unset($procStatFile);
         unset($procStatusFile);
+        unset($procIoFile);
     }
 
     /**
@@ -891,6 +919,10 @@ class ProcStats {
         $result .= $statData[$pid]['thisJiff'];
         $result .= ' / ';
         $result .= $statData[$pid]['deadChildJiff'];
+        $result .= ' | ';
+        $result .= $statData[$pid]['readBytes'];
+        $result .= ' / ';
+        $result .= $statData[$pid]['writeBytes'];
         $result .= "\n";
         foreach ( $statData[$pid]['childPids'] as $childPid )
         {
