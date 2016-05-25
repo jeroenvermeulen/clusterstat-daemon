@@ -571,7 +571,7 @@ class ProcStats {
     protected function _getFromDatabase()
     {
         $result = array();
-        $rowSet = $this->_getDatabase()->query('SELECT linuxuser,process,lastvalue,counter FROM jiffy');
+        $rowSet = $this->_getDatabase()->query('SELECT linuxuser,process,jiffies_last,jiffies_counter FROM procstats');
         if ( is_array($rowSet) )
         {
             foreach ($rowSet as $row)
@@ -595,10 +595,10 @@ class ProcStats {
         $database    = $this->_getDatabase();
         $database->beginTransaction();
 
-        $updateSQL   = 'UPDATE jiffy SET lastvalue=:lastvalue, counter=:counter WHERE linuxuser=:linuxuser AND process=:process';
+        $updateSQL   = 'UPDATE procstats SET jiffies_last=:lastvalue, jiffies_counter=:counter WHERE linuxuser=:linuxuser AND process=:process';
         $updateStmt  = $database->prepare($updateSQL);
         unset($updateSQL);
-        $insertSQL   = 'INSERT INTO jiffy (linuxuser,process,lastvalue,counter) VALUES (:linuxuser,:process,:lastvalue,:counter)';
+        $insertSQL   = 'INSERT INTO procstats (linuxuser,process,jiffies_lastvalue,jiffies_counter) VALUES (:linuxuser,:process,:lastvalue,:counter)';
         $insertStmt  = $database->prepare($insertSQL);
         unset($insertSQL);
 
