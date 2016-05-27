@@ -44,14 +44,13 @@ try {
     $webserver->registerController( '/', array($stats, 'homepage'));
     $webserver->registerController( '/runtimestats.js', array($stats, 'getRuntimeStats'));
     $webserver->registerController( '/procstats_json', array($procstats, 'getJsonProcStats'), 'application/json' );
-    $webserver->registerController( '/procstats_cacti', array($procstats, 'getCactiProcStats'), 'text/plain' );
-    $webserver->registerController( '/proccount_cacti', array($procstats, 'getCactiProcCount'), 'text/plain' );
     $webserver->registerController( '/procstats_nagios', array($procstats, 'getNagiosProcStats'), 'text/plain' );
     $webserver->registerController( array( '/procstats/munin/jiffies/', '/procstats/munin/procs/' )
                                   , array( $procstats, 'getMuninProcStats' )
                                   , 'text/plain' );
+    $webserver->registerController( '/procstats/munin/io/',   array($procstats, 'getMuninIoStats'),        'text/plain' );
     $webserver->registerController( '/procstats_detail_html', array($procstats, 'getProcStatsDetailHtml'), 'text/html' );
-    $webserver->registerController( '/procstats_debugtree', array($procstats, 'debugTree'), 'text/plain' );
+    $webserver->registerController( '/procstats_debugtree',   array($procstats, 'debugTree'),              'text/plain' );
 
     // register timers
     $timer = new Timer();

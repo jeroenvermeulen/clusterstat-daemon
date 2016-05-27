@@ -36,7 +36,7 @@ jQuery(function () {
                          && 'undefined' != typeof procStats[ user ][proc]['jiffies_counter']
                        ) {
                         userProcs[userProcNr] = { user: user, proc: proc };
-                        var val               = procStats[ user ][proc]['jiff'];
+                        var val               = procStats[ user ][proc]['jiffies'];
                         series[userProcNr]    = { name: user, data: [{ x: nowTimeMilli, y: val }] };
                         userProcNr++;
                     }
@@ -152,11 +152,11 @@ jQuery(function () {
                 var proc = userProcs[nr]['proc'];
                 if (   'undefined' != typeof data[user]
                     && 'undefined' != typeof data[user][proc]
-                    && 'undefined' != typeof data[user][proc]['jiff'] ) {
-                    var val = data[ user ][proc]['jiff'];
+                    && 'undefined' != typeof data[user][proc]['jiffies'] ) {
+                    var val = data[ user ][proc]['jiffies'];
                     chart.series[nr].addPoint([nowTimeMilli, val], true, shift);
 
-                    jQuery('#'+user+'_jiff').html( data[ user ][proc]['jiff'] );
+                    jQuery('#'+user+'_jiff').html( data[ user ][proc]['jiffies'] );
                     jQuery('#'+user+'_counter').html( data[ user ][proc]['jiffies_counter'] );
                 }
             }
