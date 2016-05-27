@@ -333,7 +333,7 @@ class ProcStats {
                 }
             } // end foreach( $users )
             if ( $config ) {
-                $result .= sprintf( "TOTAL.cdef %s\n", $totalCdef );
+//                $result .= sprintf( "TOTAL.cdef %s\n", $totalCdef );
             } else {
                 $allTotal = $this->_wrapFix( $allTotal );
                 $result .= sprintf( "%s.value %d\n", 'TOTAL', $allTotal );
@@ -362,8 +362,8 @@ class ProcStats {
         {
             if ( $config ) {
                 $result .= "graph_title IO per User\n";
-                $result .= "graph_vlabel jiffies\n";
-                $result .= "graph_info IO per user.\n";
+                $result .= "graph_vlabel Bytes/sec  read(-) / write(+) \n";
+                $result .= "graph_info Disk IO in bytes per second.\n";
                 $result .= "graph_args --slope-mode\n";
 
                 $fieldName = 'TOTAL';
@@ -385,6 +385,7 @@ class ProcStats {
             $allTotal_r = 0;
             $allTotal_w = 0;
             $totalCdef = '';
+            $colour = 0;
             foreach ( $users as $user ) {
                 $fieldName = $user;
                 $fieldName = preg_replace('/[^a-z]/','',$fieldName);
@@ -402,10 +403,12 @@ class ProcStats {
                         $result   .= sprintf( "%s_r.draw LINE1\n", $fieldName );
                         $result   .= sprintf( "%s_r.type DERIVE\n", $fieldName );
                         $result   .= sprintf( "%s_r.cdef %s_r,-1,*\n", $fieldName, $fieldName );
+                        $result   .= sprintf( "%s_r.colour COLOUR%d\n",  $fieldName, $colour );
                         $result   .= sprintf( "%s_w.label %s write\n", $fieldName, $user );
                         $result   .= sprintf( "%s_w.min 0\n", $fieldName );
                         $result   .= sprintf( "%s_w.draw LINE1\n", $fieldName );
                         $result   .= sprintf( "%s_w.type DERIVE\n", $fieldName );
+                        $result   .= sprintf( "%s_w.colour COLOUR%d\n",  $fieldName, $colour );
                         if ( empty($totalCdef) ) {
                             $totalCdef = $fieldName;
                         } else {
@@ -417,11 +420,12 @@ class ProcStats {
                         $allTotal_r += $stats[$user]['TOTAL']['ioread_counter'];
                         $allTotal_w += $stats[$user]['TOTAL']['iowrite_counter'];
                     }
+                    $colour++;
                 }
             } // end foreach( $users )
             if ( $config ) {
-                $result .= sprintf( "TOTAL_r.cdef %s\n", $totalCdef );
-                $result .= sprintf( "TOTAL_w.cdef %s\n", $totalCdef );
+//                $result .= sprintf( "TOTAL_r.cdef %s\n", $totalCdef );
+//                $result .= sprintf( "TOTAL_w.cdef %s\n", $totalCdef );
             } else {
                 $result .= sprintf( "%s_r.value %d\n", 'TOTAL', $this->_wrapFix($allTotal_r) );
                 $result .= sprintf( "%s_w.value %d\n", 'TOTAL', $this->_wrapFix($allTotal_w) );
