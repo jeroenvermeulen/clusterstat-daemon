@@ -87,7 +87,7 @@ class ProcStats {
                     $user = $this->_uidToUser($uid);
 
                     $result[$user]['TOTAL']['jiff']    = 0;
-                    $result[$user]['TOTAL']['counter'] = 0;
+                    $result[$user]['TOTAL']['jiffies_counter'] = 0;
                     $result[$user]['TOTAL']['procs'] = 0;
 
                     if (  isset($startStats[$uid])
@@ -115,9 +115,9 @@ class ProcStats {
                                 $result[$user][$process]['procs']   = $endStats[$uid][$process]['procs'];
                                 $result[$user]['TOTAL']['procs']    += $endStats[$uid][$process]['procs'];
                             }
-                            $result[$user][$process]['counter'] = $this->_dbData[$uid][$process]['counter'];
-                            $result[$user]['TOTAL']['counter'] += $this->_dbData[$uid][$process]['counter'];
-                            $result[$user]['TOTAL']['counter'] = $this->_wrapFix( $result[$user]['TOTAL']['counter'] );
+                            $result[$user][$process]['jiffies_counter'] = $this->_dbData[$uid][$process]['jiffies_counter'];
+                            $result[$user]['TOTAL']['jiffies_counter'] += $this->_dbData[$uid][$process]['jiffies_counter'];
+                            $result[$user]['TOTAL']['jiffies_counter'] = $this->_wrapFix( $result[$user]['TOTAL']['jiffies_counter'] );
                         }
                         unset( $nil2 );
                     }
@@ -155,8 +155,8 @@ class ProcStats {
             $users = array_keys($stats);
             foreach ( $users as $user )
             {
-                $result .= sprintf( '%s:%d ', $user, $stats[$user]['TOTAL']['counter'] );
-                $allTotal += $stats[$user]['TOTAL']['counter'];
+                $result .= sprintf( '%s:%d ', $user, $stats[$user]['TOTAL']['jiffies_counter'] );
+                $allTotal += $stats[$user]['TOTAL']['jiffies_counter'];
             }
             $allTotal = $this->_wrapFix( $allTotal );
             $result .= sprintf( '%s:%d ', 'TOTAL', $allTotal );
@@ -210,9 +210,9 @@ class ProcStats {
             $allTotal = 0;
             foreach ( $users as $user )
             {
-                if ( isset($stats[$user]['TOTAL']['counter']) )
+                if ( isset($stats[$user]['TOTAL']['jiffies_counter']) )
                 {
-                    $value     = $stats[$user]['TOTAL']['counter'];
+                    $value     = $stats[$user]['TOTAL']['jiffies_counter'];
                     $result   .= sprintf( '%s=%dc ', $user, $value );
                     $allTotal += $value;
                     unset($value);
@@ -240,7 +240,7 @@ class ProcStats {
         $pathParts = explode( '/', $requestInfo['PATH'] );
         switch( $pathParts[3] ) {
             case 'jiffies':
-                $key = 'counter';
+                $key = 'jiffies_counter';
                 break;
             case 'procs':
                 $key = 'procs';
@@ -264,7 +264,7 @@ class ProcStats {
                 $result .= "TOTAL.label TOTAL\n";
                 $result .= "TOTAL.draw LINE1\n";
                 $result .= "TOTAL.colour eeeeee\n";
-                if ('counter' == $key) {
+                if ('jiffies_counter' == $key) {
                     // CPU usage in Jiffies
                     $result .= "TOTAL.type DERIVE\n";
                     $result .= "TOTAL.min 0\n";
@@ -294,14 +294,14 @@ class ProcStats {
                 if ( 'root' == $fieldName ) {
                     $fieldName = 'uroot';
                 }
-                if ( isset($stats[$user]['TOTAL']['counter'])
-                    && $stats[$user]['TOTAL']['counter'] > 100 )
+                if ( isset($stats[$user]['TOTAL']['jiffies_counter'])
+                    && $stats[$user]['TOTAL']['jiffies_counter'] > 100 )
                 {
                     if ( $config ) {
                         $result   .= sprintf( "%s.label %s\n", $fieldName, $user );
                         $result   .= sprintf( "%s.min 0\n", $fieldName );
                         $result   .= sprintf( "%s.draw LINE1\n", $fieldName );
-                        if ( 'counter' == $key ) {
+                        if ( 'jiffies_counter' == $key ) {
                             $result   .= sprintf( "%s.type DERIVE\n", $fieldName );
                             $result   .= sprintf( "%s.max %d\n", $fieldName, $this->_maxJiffies );
                         }
@@ -365,16 +365,16 @@ class ProcStats {
             $users = array_keys($stats);
             foreach ( $users as $user )
             {
-                if (  isset($stats[$user]['TOTAL']['counter'])
+                if (  isset($stats[$user]['TOTAL']['jiffies_counter'])
                     && isset($stats[$user]['TOTAL']['jiff'])
                 )
                 {
-                    $counterTotal += $stats[$user]['TOTAL']['counter'];
+                    $counterTotal += $stats[$user]['TOTAL']['jiffies_counter'];
                     $jiffTotal    += $stats[$user]['TOTAL']['jiff'];
                     $procsTotal   += $stats[$user]['TOTAL']['procs'];
                 }
             }
-            $stats['TOTAL']['TOTAL']['counter'] = $counterTotal;
+            $stats['TOTAL']['TOTAL']['jiffies_counter'] = $counterTotal;
             $stats['TOTAL']['TOTAL']['jiff']    = $jiffTotal;
             $stats['TOTAL']['TOTAL']['procs']   = $procsTotal;
             $counterTotal = empty($counterTotal) ? 1 : $counterTotal;
@@ -389,11 +389,11 @@ class ProcStats {
                 array_unshift($procs, 'TOTAL');
                 foreach ( $procs as $process )
                 {
-                    if (  isset($stats[$user][$process]['counter'])
+                    if (  isset($stats[$user][$process]['jiffies_counter'])
                         && isset($stats[$user][$process]['jiff'])
                     )
                     {
-                        $counter      = $stats[$user][$process]['counter'];
+                        $counter      = $stats[$user][$process]['jiffies_counter'];
                         $counterPerc  = $counter * 100 / $counterTotal;
                         $jiff         = $stats[$user][$process]['jiff'];
                         $jiffPerc     = $jiff * 100 / $jiffTotal;
@@ -457,7 +457,8 @@ class ProcStats {
      * timerCollectStats
      *
      * This function must be run every X seconds by the daemon.
-     * It calls functions to collect data from /proc, do calculations and store it in the object in $this->_dbData
+     * It calls functions to collect data from /proc, does calculations and store it in the object in $this->_dbData
+     * It also the adds latest stats in front of the $this->_statFifoLen queue.
      */
     public function timerCollectStats()
     {
@@ -466,17 +467,18 @@ class ProcStats {
 
         $userProcStats = $this->_getUserProcStats( $statData, $this->_prevStatData );
         $this->_prevStatData = $statData;
+        //var_dump($userProcStats);
 
         foreach ( $userProcStats as $uid => &$nil )
         {
             foreach ( $userProcStats[$uid] as $process => &$nil2 )
             {
-                if (  isset( $this->_dbData[$uid][$process]['counter'] ) )
+                if (  isset( $this->_dbData[$uid][$process]['jiffies_counter'] ) )
                 {
                     // Delta mechanism takes place in _getUserProcStats.
                     // Previous data found in database
-                    $this->_dbData[$uid][$process]['counter'] += $userProcStats[$uid][$process]['jiff'];
-                    $this->_dbData[$uid][$process]['counter'] = $this->_wrapFix( $this->_dbData[$uid][$process]['counter'] );
+                    $this->_dbData[$uid][$process]['jiffies_counter'] += $userProcStats[$uid][$process]['jiff'];
+                    $this->_dbData[$uid][$process]['jiffies_counter'] = $this->_wrapFix( $this->_dbData[$uid][$process]['jiffies_counter'] );
                     unset($delta);
                 }
                 else
@@ -484,11 +486,11 @@ class ProcStats {
                     // No entry found in database, create initial data.
                     $this->_dbData[$uid][$process]['linuxuser'] = $uid;
                     $this->_dbData[$uid][$process]['process']   = $process;
-                    $this->_dbData[$uid][$process]['counter']   = $userProcStats[$uid][$process]['jiff'];
+                    $this->_dbData[$uid][$process]['jiffies_counter']   = $userProcStats[$uid][$process]['jiff'];
                     $this->_dbData[$uid][$process]['procs']     = $userProcStats[$uid][$process]['procs'];
                 }
-                $this->_dbData[$uid][$process]['lastvalue'] = $userProcStats[$uid][$process]['jiff'] ;
-                $userProcStats[$uid][$process]['counter']   = $this->_dbData[$uid][$process]['counter'];
+                $this->_dbData[$uid][$process]['jiffies_last'] = $userProcStats[$uid][$process]['jiff'] ;
+                $userProcStats[$uid][$process]['jiffies_counter']   = $this->_dbData[$uid][$process]['jiffies_counter'];
             }
             unset($nil2);
             unset($process);
@@ -503,6 +505,8 @@ class ProcStats {
         array_unshift($this->_statFifo,$userProcStats);
 
         unset($userProcStats);
+
+        //$this->_debugDbData();
     }
 
     /**
@@ -595,49 +599,49 @@ class ProcStats {
         $database    = $this->_getDatabase();
         $database->beginTransaction();
 
-        $updateSQL   = 'UPDATE procstats SET jiffies_last=:lastvalue, jiffies_counter=:counter WHERE linuxuser=:linuxuser AND process=:process';
+        $updateSQL   = 'UPDATE procstats SET jiffies_last=:jiffies_last, jiffies_counter=:jiffies_counter WHERE linuxuser=:linuxuser AND process=:process';
         $updateStmt  = $database->prepare($updateSQL);
         unset($updateSQL);
-        $insertSQL   = 'INSERT INTO procstats (linuxuser,process,jiffies_lastvalue,jiffies_counter) VALUES (:linuxuser,:process,:lastvalue,:counter)';
+        $insertSQL   = 'INSERT INTO procstats (linuxuser,process,jiffies_lastvalue,jiffies_counter) VALUES (:linuxuser,:process,:jiffies_last,:jiffies_counter)';
         $insertStmt  = $database->prepare($insertSQL);
         unset($insertSQL);
 
-        $linuxuser   = '';
-        $process     = '';
-        $lastvalue   = '';
-        $counter      = '';
+        $linuxuser       = '';
+        $process         = '';
+        $jiffies_last    = '';
+        $jiffies_counter = '';
 
         // Bind parameters to statement variables
-        $updateStmt->bindParam( ':linuxuser',   $linuxuser );
-        $updateStmt->bindParam( ':process',     $process );
-        $updateStmt->bindParam( ':lastvalue',   $lastvalue );
-        $updateStmt->bindParam( ':counter',     $counter );
+        $updateStmt->bindParam( ':linuxuser',       $linuxuser );
+        $updateStmt->bindParam( ':process',         $process );
+        $updateStmt->bindParam( ':jiffies_last',    $jiffies_last );
+        $updateStmt->bindParam( ':jiffies_counter', $jiffies_counter );
 
-        $insertStmt->bindParam( ':linuxuser',   $linuxuser );
-        $insertStmt->bindParam( ':process',     $process );
-        $insertStmt->bindParam( ':lastvalue',   $lastvalue );
-        $insertStmt->bindParam( ':counter',     $counter );
+        $insertStmt->bindParam( ':linuxuser',       $linuxuser );
+        $insertStmt->bindParam( ':process',         $process );
+        $insertStmt->bindParam( ':jiffies_last',    $jiffies_last );
+        $insertStmt->bindParam( ':jiffies_counter', $jiffies_counter );
 
         // Loop through all messages and execute prepared insert statement
         if ( is_array($data) )
         {
-            foreach ($data as $userdata)
+            foreach ($data as $userData)
             {
-                if ( is_array($userdata) )
+                if ( is_array($userData) )
                 {
-                    foreach ($userdata as $row)
+                    foreach ($userData as $row)
                     {
                         if (  isset($row['linuxuser'])
                             && isset($row['process'])
-                            && isset($row['lastvalue'])
-                            && isset($row['counter'])
+                            && isset($row['jiffies_last'])
+                            && isset($row['jiffies_counter'])
                         )
                         {
                             // Set values to bound variables
-                            $linuxuser   = $row['linuxuser'];
-                            $process     = $row['process'];
-                            $lastvalue   = $row['lastvalue'];
-                            $counter     = $row['counter'];
+                            $linuxuser       = $row['linuxuser'];
+                            $process         = $row['process'];
+                            $jiffies_last    = $row['jiffies_last'];
+                            $jiffies_counter = $row['jiffies_counter'];
 
                             // Execute statement
                             $updateStmt->execute();
@@ -654,7 +658,7 @@ class ProcStats {
                     unset($row);
                 }
             }
-            unset($userdata);
+            unset($userData);
         }
         unset($data);
 
@@ -665,8 +669,8 @@ class ProcStats {
         unset($database);
         unset($linuxuser);
         unset($process);
-        unset($lastvalue);
-        unset($counter);
+        unset($jiffies_last);
+        unset($jiffies_counter);
     }
 
     /**
@@ -718,41 +722,52 @@ class ProcStats {
      * @return array - Array with sums like:  $result[ USER ][ PROCESSNAME ][ 'jiff' ]  = sum of used jiffies since last collect
      *                                        $result[ USER ][ PROCESSNAME ][ 'time' ]  = unix time of getting info from /proc
      *                                        $result[ USER ][ PROCESSNAME ][ 'procs' ] = number of processes
+     *                                        $result[ USER ][ PROCESSNAME ][ 'procs' ] = number of processes
+     *                                        $result[ USER ][ PROCESSNAME ][ 'procs' ] = number of processes
      */
     protected function _getUserProcStats( $statData, $prevStatData )
     {
         $result = array();
+        //                Key in statData   Key in result
+        $counters = array('thisJiff'     => 'jiff',
+                          'readBytes'    => 'read',
+                          'writeBytes'   => 'write');
 
-        foreach ( $statData as $pid => $aProcInfo )
+        foreach ( $statData as $pid => $procInfo )
         {
-            if ( isset($aProcInfo['uid']) ) {
-                $uid      = $aProcInfo['uid'];
-                $procName = $aProcInfo['name'];
+            if ( isset($procInfo['uid']) ) {
+                $uid      = $procInfo['uid'];
+                $procName = $procInfo['name'];
 
                 if (!isset($result[$uid])) {
                     $result[$uid] = array();
                 }
                 if (!isset($result[$uid][$procName])) {
+                    $result[$uid][$procName] = array();
                     $result[$uid][$procName]['procs'] = 0;
-                    $result[$uid][$procName]['jiff'] = 0;
+                    foreach ( $counters as $prevKey => $resultKey ) {
+                        $result[$uid][$procName][$resultKey] = 0;
+                    }
                 }
 
                 $result[$uid][$procName]['procs']++;
-                $iJiff = $aProcInfo['thisJiff'];
-                if (isset($prevStatData[$pid]['thisJiff'])) {
-                    // Process was already running previous collect time
-                    $iJiff = $iJiff - $prevStatData[$pid]['thisJiff'];
-                    $iJiff = max(0, $iJiff); // make sure it does not get negative
+                foreach ( $counters as $prevKey => $resultKey ) {
+                    $value = $procInfo[$prevKey];
+                    if (isset($prevStatData[$pid][$prevKey])) {
+                        // Process was already running previous collect time
+                        $value = $value - $prevStatData[$pid][$prevKey];
+                        $value = max(0, $value); // make sure it does not get negative
+                    }
+                    $result[$uid][$procName][$resultKey] += $value;
                 }
-                $result[$uid][$procName]['jiff'] += $iJiff;
-                $result[$uid][$procName]['time'] = $aProcInfo['time'];
+                $result[$uid][$procName]['time'] = $procInfo['time'];
 
                 unset($uid);
                 unset($procName);
                 unset($iJiff);
             }
         }
-        unset($aProcInfo);
+        unset($procInfo);
 
         return $result;
     }
@@ -931,6 +946,20 @@ class ProcStats {
         return $result;
     }
 
+    protected function _debugDbData() {
+        foreach( $this->_dbData as $uid => &$nil ) {
+            foreach ( $this->_dbData[$uid] as $process => $procData )
+            {
+                printf( "uid:%-5s %-15s procs:%-3s counter:%-5s last:%-5s\n",
+                        $procData['linuxuser'],
+                        $procData['process'],
+                        $procData['procs'],
+                        $procData['jiffies_counter'],
+                        $procData['jiffies_last'] );
+            }
+        }
+    }
+
     /**
      * Indent a JSON string to be more readable for debugging
      *
@@ -997,7 +1026,7 @@ class ProcStats {
      */
     protected function _userCmp($a, $b)
     {
-        return $b['TOTAL']['counter'] - $a['TOTAL']['counter'];
+        return $b['TOTAL']['jiffies_counter'] - $a['TOTAL']['jiffies_counter'];
     }
 
     /**
@@ -1009,7 +1038,7 @@ class ProcStats {
      */
     protected function _userProcCmp($a, $b)
     {
-        return $b['counter'] - $a['counter'];
+        return $b['jiffies_counter'] - $a['jiffies_counter'];
     }
 
     /**
