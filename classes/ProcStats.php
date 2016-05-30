@@ -31,6 +31,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *   - getJsonProcStats       - Returns JSON string
  *   - getNagiosProcStats     - Returns "user1=NUMBER user2=NUMBER" string for Nagios
  *   - getMuninProcStats
+ *   - getMuninIoStats
  *   - getProcStatsDetailHtml - Returns a HTML layout detailed overview
  *
  * URLs:
@@ -285,7 +286,7 @@ class ProcStats {
                     $result .= "TOTAL.type DERIVE\n";
                     $result .= "TOTAL.min 0\n";
                     $result .= sprintf("TOTAL.max %d\n", $this->_maxJiffies);
-                    $result .= "graph_title CPU Usage per User\n";
+                    $result .= "graph_title MH CPU Usage per User\n";
                     $result .= "graph_vlabel jiffies\n";
                     $result .= "graph_info CPU usage per user. 100 jiffies = 1 full CPU core.\n";
                     $result .= "graph_args --upper-limit 800 --lower-limit 0 --rigid --slope-mode --units-exponent 1\n";
@@ -293,7 +294,7 @@ class ProcStats {
                     // Number of running processes
                     $result .= "TOTAL.min 0\n";
                     $result .= "TOTAL.max 245760\n"; // cat /proc/sys/kernel/pid_max
-                    $result .= "graph_title Running Processes\n";
+                    $result .= "graph_title MH Running Processes per User\n";
                     $result .= "graph_vlabel processes\n";
                     $result .= "graph_info Running processes per user.\n";
                     $result .= "graph_args --lower-limit 0 --slope-mode --units-exponent 1\n";
@@ -363,7 +364,7 @@ class ProcStats {
             if ( $config ) {
                 $result .= "graph_title IO per User\n";
                 $result .= "graph_vlabel Bytes/sec  read(-) / write(+) \n";
-                $result .= "graph_info Disk IO in bytes per second.\n";
+                $result .= "graph_info MH Disk IO in bytes per second.\n";
                 $result .= "graph_args --slope-mode\n";
 
                 $fieldName = 'TOTAL';
