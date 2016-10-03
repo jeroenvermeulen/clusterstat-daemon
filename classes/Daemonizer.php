@@ -92,13 +92,23 @@ class Daemonizer {
             die("No running instance found to be stopped\r\n\r\n");
         }
 
-        // if the debug flag is set, prevent actual daemonization
-        if(self::$_shouldDebug || self::$_shouldUpstart) return;
+        // if the debug flag is set or started via Upstart, prevent actual daemonization
+        if(self::$_shouldDebug || self::$_shouldUpstart) {
+            return;
+        }
+
+        if ( preg_match('/\bpcntl_fork\b/', ini_get('disable_functions')) ) {
+            die("The PHP function 'bpcntl_fork' is disabled. This function is required to run this application as an independent daemon.\r\n\r\n");
+        };
+        if(!function_exists('pcntl_fork')) {
+            die("The PHP function 'bpcntl_fork' does not exist. This function is required to run this application as an independent daemon. You may need to install the PHP extension 'PCNTL'.\r\n\r\n");
+        }
 
         // fork the current process, make session leader and kill the old parent process to daemonize
         if (($pid=pcntl_fork())==-1 || ($pid==0 && posix_setsid()<0)) {
             die("Error starting the new instance\r\n\r\n");
         } elseif ($pid!=0) {
+            // old parent
             exit(0);
         }
 
@@ -138,7 +148,6 @@ class Daemonizer {
     private static function _sanityCheck() {
         if(substr(PHP_OS,0,3) == 'WIN') die("This application is only compatible with UNIX operating systems\r\n\r\n");
         if(PHP_SAPI!=='cli') die("This application needs to be run from the commandline\r\n\r\n");
-        if(!function_exists('pcntl_fork')) die("PCNTL PHP extension is required to run this application\r\n\r\n");
         if(!function_exists('posix_kill')) die("POSIX PHP extension is required to run this application\r\n\r\n");
     }
 
