@@ -155,7 +155,7 @@ class Daemonizer {
         if(PHP_VERSION_ID < 50300) {
             die("This application needs at least PHP 5.3.0\r\n\r\n");
         }
-        if (preg_match('/\pcntl_signal_dispatch\b/', ini_get('disable_functions'))) {
+        if (preg_match('/\bpcntl_signal_dispatch\b/', ini_get('disable_functions'))) {
             die("The PHP function 'pcntl_signal_dispatch' is disabled. This function is required to run this application.\r\n\r\n");
         };
         if (!function_exists('pcntl_signal_dispatch')) {
