@@ -98,10 +98,10 @@ class Daemonizer {
         }
 
         if ( preg_match('/\bpcntl_fork\b/', ini_get('disable_functions')) ) {
-            die("The PHP function 'bpcntl_fork' is disabled. This function is required to run this application as an independent daemon.\r\n\r\n");
+            die("The PHP function 'pcntl_fork' is disabled. This function is required to run this application as an independent daemon.\r\n\r\n");
         };
         if(!function_exists('pcntl_fork')) {
-            die("The PHP function 'bpcntl_fork' does not exist. This function is required to run this application as an independent daemon. You may need to install the PHP extension 'PCNTL'.\r\n\r\n");
+            die("The PHP function 'pcntl_fork' does not exist. This function is required to run this application as an independent daemon. You may need to install the PHP extension 'PCNTL'.\r\n\r\n");
         }
 
         // fork the current process, make session leader and kill the old parent process to daemonize

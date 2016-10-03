@@ -59,16 +59,17 @@ try {
     $timer->register(array($procstats,'timerCollectStats'), 1, true);
     $timer->register(array($procstats,'timerWriteDatabase'), 300, false);
 
+    $doPcntlSignalDispatch == ( !preg_match('/\bpcntl_signal_dispatch\b/', ini_get('disable_functions')) && PHP_VERSION_ID >= 50300 );
+
     // enter main application loop
     while( true ) {
         $webserver->handleClients(250000);
 
-        // dispatch pending timer and system signals
+        // dispatch pending timer
         $timer->checkTimers();
 
-        if ( PHP_VERSION_ID >= 50300 ) {
-            pcntl_signal_dispatch();
-        }
+        // if possible check for system signals
+        $doPcntlSignalDispatch && pcntl_signal_dispatch();
     }
 } catch(Exception $e) {
     Log::error('Fatal '.get_class($e).': '.$e->getMessage());
