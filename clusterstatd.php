@@ -59,7 +59,7 @@ try {
     $timer->register(array($procstats,'timerCollectStats'), 1, true);
     $timer->register(array($procstats,'timerWriteDatabase'), 300, false);
 
-    $doPcntlSignalDispatch == ( !preg_match('/\bpcntl_signal_dispatch\b/', ini_get('disable_functions')) && PHP_VERSION_ID >= 50300 );
+    $doPcntlSignalDispatch = ( !preg_match('/\bpcntl_signal_dispatch\b/', ini_get('disable_functions')) && PHP_VERSION_ID >= 50300 );
 
     // enter main application loop
     while( true ) {
