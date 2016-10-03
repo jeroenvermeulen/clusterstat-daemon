@@ -4,10 +4,9 @@ After=network.target
 
 [Service]
 Type=forking
-ExecStart=/usr/bin/php /usr/share/clusterstat-daemon/clusterstatd.php start
-ExecReload=/usr/bin/php /usr/share/clusterstat-daemon/clusterstatd.php reload
-ExecStop=/usr/bin/php /usr/share/clusterstat-daemon/clusterstatd.php stop
-# KillMode=process
+ExecStart=/usr/bin/php -d disable_functions= -f /usr/share/clusterstat-daemon/clusterstatd.php -- start
+ExecReload=/usr/bin/php -d disable_functions= -f /usr/share/clusterstat-daemon/clusterstatd.php -- reload
+ExecStop=/usr/bin/php -d disable_functions= -f /usr/share/clusterstat-daemon/clusterstatd.php -- stop
 Restart=on-failure
 
 [Install]
