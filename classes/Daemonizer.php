@@ -146,8 +146,21 @@ class Daemonizer {
      * Checks if all prerequisites are met to use this class
      */
     private static function _sanityCheck() {
-        if(substr(PHP_OS,0,3) == 'WIN') die("This application is only compatible with UNIX operating systems\r\n\r\n");
-        if(PHP_SAPI!=='cli') die("This application needs to be run from the commandline\r\n\r\n");
+        if(substr(PHP_OS,0,3) == 'WIN') {
+            die("This application is only compatible with UNIX operating systems\r\n\r\n");
+        }
+        if(PHP_SAPI!=='cli') {
+            die("This application needs to be run from the commandline\r\n\r\n");
+        }
+        if(PHP_VERSION_ID < 50300) {
+            die("This application needs at least PHP 5.3.0\r\n\r\n");
+        }
+        if (preg_match('/\pcntl_signal_dispatch\b/', ini_get('disable_functions'))) {
+            die("The PHP function 'pcntl_signal_dispatch' is disabled. This function is required to run this application.\r\n\r\n");
+        };
+        if (!function_exists('pcntl_signal_dispatch')) {
+            die("The PHP function 'pcntl_signal_dispatch' does not exist. This function is required to run this application. You may need to install the PHP extension 'PCNTL'.\r\n\r\n");
+        }
         if(!function_exists('posix_kill')) die("POSIX PHP extension is required to run this application\r\n\r\n");
     }
 

@@ -21,6 +21,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * @package  ClusterStatsDaemon
  * @author   Bas Peters       <bas@baspeters.com>
  * @author   Jeroen Vermeulen <info@jeroenvermeulen.eu>
+ * @license  GNU General Public License, version 3
+ *
+ * Requires:
+ *   CLI PHP >= 5.3.0
+ *   PHP Extensions: PCNTL, POSIX, SQLite3
  */
 try {
     // prepare environment
@@ -59,8 +64,6 @@ try {
     $timer->register(array($procstats,'timerCollectStats'), 1, true);
     $timer->register(array($procstats,'timerWriteDatabase'), 300, false);
 
-    $doPcntlSignalDispatch = ( !preg_match('/\bpcntl_signal_dispatch\b/', ini_get('disable_functions')) && PHP_VERSION_ID >= 50300 );
-
     // enter main application loop
     while( true ) {
         $webserver->handleClients(250000);
@@ -68,8 +71,8 @@ try {
         // dispatch pending timer
         $timer->checkTimers();
 
-        // if possible check for system signals
-        $doPcntlSignalDispatch && pcntl_signal_dispatch();
+        // check for system signals
+        pcntl_signal_dispatch();
     }
 } catch(Exception $e) {
     Log::error('Fatal '.get_class($e).': '.$e->getMessage());
