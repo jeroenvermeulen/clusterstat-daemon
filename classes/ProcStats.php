@@ -424,12 +424,9 @@ class ProcStats {
                     $colour++;
                 }
             } // end foreach( $users )
-            if ( $config ) {
-//                $result .= sprintf( "TOTAL_r.cdef %s\n", $totalCdef );
-//                $result .= sprintf( "TOTAL_w.cdef %s\n", $totalCdef );
-            } else {
-                $result .= sprintf( "%s_r.value %d\n", 'TOTAL', $this->_wrapFix($allTotal_r) );
-                $result .= sprintf( "%s_w.value %d\n", 'TOTAL', $this->_wrapFix($allTotal_w) );
+            if ( ! $config ) {
+                $result .= sprintf( "%s_r.value %d\n", 'TOTAL', $allTotal_r );
+                $result .= sprintf( "%s_w.value %d\n", 'TOTAL', $allTotal_w );
             }
         }
         return $result;
