@@ -289,7 +289,7 @@ class ProcStats {
                     $result .= "graph_title MH CPU Usage per User\n";
                     $result .= "graph_vlabel jiffies\n";
                     $result .= "graph_info CPU usage per user. 100 jiffies = 1 full CPU core.\n";
-                    $result .= "graph_args --upper-limit 800 --lower-limit 0 --rigid --slope-mode --units-exponent 1\n";
+                    $result .= "graph_args --upper-limit 1200 --lower-limit 0 --rigid --slope-mode --units-exponent 1\n";
                 } elseif ('procs' == $key) {
                     // Number of running processes
                     $result .= "TOTAL.min 0\n";
