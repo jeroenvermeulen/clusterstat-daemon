@@ -58,6 +58,9 @@ class ProcStats {
     protected $_dbData       = null;    // Is filled by _getFromDatabase and timerCollectStats
     protected $_maxJiffies   = 25600;   // Let's say our server has max 256 cpu threads;
     protected $_counters     = array( 'jiffies', 'ioread', 'iowrite' );
+    protected $_sortField    = 'jiffies_counter';
+    protected $_sortOptions  = array('jiffies'=>'jiffies_counter', 'procs'=>'procs',
+                                     'ioread'=>'ioread_counter', 'iowrite'=>'iowrite_counter');
 
     /**
      * Constructor - initialize some data.
@@ -129,11 +132,10 @@ class ProcStats {
                                     $valJiff  = max(0, $valJiff);
                                     $result[$user][$process][$counterName] = $valJiff;
                                     $result[$user]['TOTAL'][$counterName] += $valJiff;
-
                                 }
                                 $result[$user][$process][$counterKey] = $this->_dbData[$uid][$process][$counterKey];
                                 $result[$user]['TOTAL'][$counterKey] += $this->_dbData[$uid][$process][$counterKey];
-                                $result[$user]['TOTAL'][$counterKey] = $this->_wrapFix( $result[$user]['TOTAL'][$counterKey] );
+                                $result[$user]['TOTAL'][$counterKey] = $result[$user]['TOTAL'][$counterKey];
                             }
                         }
                         unset( $nil2 );
@@ -255,15 +257,10 @@ class ProcStats {
     {
         $result = '';
         $pathParts = explode( '/', $requestInfo['PATH'] );
-        switch( $pathParts[3] ) {
-            case 'jiffies':
-                $key = 'jiffies_counter';
-                break;
-            case 'procs':
-                $key = 'procs';
-                break;
-            default:
-                return sprintf('Unknown key: "%s"',$pathParts[3]);
+        if (isset($this->_sortOptions[$pathParts[3]])) {
+            $key = $this->_sortOptions[$pathParts[3]];
+        } else {
+            return sprintf('Unknown key: "%s"',$pathParts[3]);
         }
         $urlSplit = explode( '?', $requestInfo['URL'] );
         $baseUrl = reset( $urlSplit );
@@ -419,7 +416,9 @@ class ProcStats {
                         $result   .= sprintf( "%s_r.value %d\n", $fieldName, $stats[$user]['TOTAL']['ioread_counter'] );
                         $result   .= sprintf( "%s_w.value %d\n", $fieldName, $stats[$user]['TOTAL']['iowrite_counter'] );
                         $allTotal_r += $stats[$user]['TOTAL']['ioread_counter'];
+                        $this->_wrapFix( $allTotal_r );
                         $allTotal_w += $stats[$user]['TOTAL']['iowrite_counter'];
+                        $this->_wrapFix( $allTotal_w );
                     }
                     $colour++;
                 }
@@ -435,12 +434,28 @@ class ProcStats {
     /**
      * Returns a HTML layout detailed overview
      *
+     * @param array $requestInfo
      * @return string - HTML for detailed overview
      */
-    public function getProcStatsDetailHtml()
+    public function getProcStatsDetailHtml($requestInfo)
     {
-        $result       = '';
-        $result      .= '<table border="1" cellpadding="2" style="border-collapse:collapse; border-bottom:2px solid black;">'."\n";
+        $getParam = array();
+        if ( !empty($requestInfo['QUERY_STRING']) ) {
+            parse_str($requestInfo['QUERY_STRING'], $getParam);
+        }
+        if (!empty($getParam['sort']) && isset($this->_sortOptions[$getParam['sort']])) {
+            $this->_sortField = $this->_sortOptions[$getParam['sort']];
+        } else {
+            $this->_sortField = 'jiffies_counter';
+        }
+        $result       = 'Sort by: ';
+        foreach ($this->_sortOptions as $key => $sortOption) {
+            $result      .= ($this->_sortField == $sortOption) ? '<b>' : '';
+            $result      .= sprintf('&nbsp;<a href="?sort=%s">%s</a> ', $key, ucfirst($key));
+            $result      .= ($this->_sortField == $sortOption) ? '</b>' : '';
+        }
+        $result      .= '<br />';
+        $result      .= '<table border="1" cellpadding="2" style="border-collapse:collapse; border-bottom:2px solid black; font-family: monospace;">'."\n";
         $result      .= '<tr>';
         $result      .= '<th>user</th>';
         $result      .= '<th colspan=7>current</th>';
@@ -610,7 +625,7 @@ class ProcStats {
 
                     // Delta mechanism takes place in _getUserProcStats().
                     $this->_dbData[$uid][$process][$counterKey] += $userProcStats[$uid][$process][$counterName];
-                    $this->_dbData[$uid][$process][$counterKey] = $this->_wrapFix( $this->_dbData[$uid][$process][$counterKey] );
+                    $this->_dbData[$uid][$process][$counterKey] = $this->_dbData[$uid][$process][$counterKey];
                     $this->_dbData[$uid][$process][$lastKey]    = $userProcStats[$uid][$process][$counterName] ;
                     // Copy counter to userProcStats to have it available in  $this->_statFifo
                     $userProcStats[$uid][$process][$counterKey] = $this->_dbData[$uid][$process][$counterKey];
@@ -1183,7 +1198,7 @@ class ProcStats {
      */
     protected function _userCmp($a, $b)
     {
-        return $b['TOTAL']['jiffies_counter'] - $a['TOTAL']['jiffies_counter'];
+        return $b['TOTAL'][$this->_sortField] - $a['TOTAL'][$this->_sortField];
     }
 
     /**
@@ -1195,7 +1210,7 @@ class ProcStats {
      */
     protected function _userProcCmp($a, $b)
     {
-        return $b['jiffies_counter'] - $a['jiffies_counter'];
+        return $b[$this->_sortField] - $a[$this->_sortField];
     }
 
     /**
