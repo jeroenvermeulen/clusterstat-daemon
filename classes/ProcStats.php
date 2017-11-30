@@ -371,12 +371,14 @@ class ProcStats {
                 $result .= "TOTAL_r.colour eeeeee\n";
                 $result .= "TOTAL_r.type DERIVE\n";
                 $result .= "TOTAL_r.min 0\n";
+                $result .= "TOTAL_r.max 12000000000\n"; // 12 Gigabit/sec
                 $result .= sprintf( "%s_r.cdef %s_r,-1,*\n", $fieldName, $fieldName );
                 $result .= "TOTAL_w.label TOTAL write\n";
                 $result .= "TOTAL_w.draw LINE1\n";
                 $result .= "TOTAL_w.colour eeeeee\n";
                 $result .= "TOTAL_w.type DERIVE\n";
                 $result .= "TOTAL_w.min 0\n";
+                $result .= "TOTAL_w.max 12000000000\n"; // 12 Gigabit/sec
             }
             $users = array_keys($stats);
             sort( $users );
@@ -398,12 +400,14 @@ class ProcStats {
                     if ( $config ) {
                         $result   .= sprintf( "%s_r.label %s read\n", $fieldName, $user );
                         $result   .= sprintf( "%s_r.min 0\n", $fieldName );
+                        $result   .= sprintf( "%s_r.max 12000000000\n", $fieldName ); // 12 Gigabit/sec
                         $result   .= sprintf( "%s_r.draw LINE1\n", $fieldName );
                         $result   .= sprintf( "%s_r.type DERIVE\n", $fieldName );
                         $result   .= sprintf( "%s_r.cdef %s_r,-1,*\n", $fieldName, $fieldName );
                         $result   .= sprintf( "%s_r.colour COLOUR%d\n",  $fieldName, $colour );
                         $result   .= sprintf( "%s_w.label %s write\n", $fieldName, $user );
                         $result   .= sprintf( "%s_w.min 0\n", $fieldName );
+                        $result   .= sprintf( "%s_w.max 12000000000\n", $fieldName ); // 12 Gigabit/sec
                         $result   .= sprintf( "%s_w.draw LINE1\n", $fieldName );
                         $result   .= sprintf( "%s_w.type DERIVE\n", $fieldName );
                         $result   .= sprintf( "%s_w.colour COLOUR%d\n",  $fieldName, $colour );
@@ -518,64 +522,59 @@ class ProcStats {
                 array_unshift($procs, 'TOTAL');
                 foreach ( $procs as $process )
                 {
-                    if (   isset($stats[$user][$process]['jiffies_counter'])
-                        && isset($stats[$user][$process]['jiffies'])
-                    )
+                    $procs        = $stats[$user][$process]['procs'];
+                    $style        = '';
+                    $name         = $process;
+                    if ( 'TOTAL' == $user )
                     {
-                        $procs        = $stats[$user][$process]['procs'];
-                        $style        = '';
-                        $name         = $process;
-                        if ( 'TOTAL' == $user )
-                        {
-                            $style    = 'background-color:#74B4CA; border-top:2px solid black;';
-                        }
-                        elseif ( 'TOTAL' == $process )
-                        {
-                            $style    = 'background-color:#C8DAE6; border-top:2px solid black;';
-                            $name     = $user;
-                        }
-                        $result      .= sprintf( '<tr style="%s">', $style);
-                        $result      .= sprintf( '<td>%s</td>', $name );
-                        $result      .= sprintf( '<td width="30" align="right">%d</td>', $procs );
-
-                        foreach ( $this->_counters as $counterName ) {
-                            $value         = $stats[$user][$process][$counterName];
-                            $valuePerc     = $value * 100 / $valueTotal[$counterName];
-                            if ( empty($value) )
-                            {
-                                $result      .= '<td width="30">&nbsp;</td>';
-                                $result      .= '<td width="60">&nbsp;</td>';
-                            }
-                            else
-                            {
-                                $result      .= sprintf( '<td width="30" align="right">%d</td>', $value );
-                                $result      .= sprintf( '<td width="60" align="right">%.02f%%</td>', $valuePerc );
-                            }
-                        }
-
-                        foreach ( $this->_counters as $counterName ) {
-                            $counterKey   = $counterName.'_counter';
-                            $counter      = $stats[$user][$process][$counterKey];
-                            $counterPerc  = $counter * 100 / $counterTotal[$counterName];
-                            if ( empty($counter) )
-                            {
-                                $result      .= '<td>&nbsp;</td>';
-                                $result      .= '<td>&nbsp;</td>';
-                            }
-                            else
-                            {
-                                $result      .= sprintf( '<td align="right">%d</td>', $counter );
-                                $result      .= sprintf( '<td align="right">%.02f%%</td>', $counterPerc );
-                            }
-                        }
-                        $result      .= '</tr>'."\n";
-                        unset($counter);
-                        unset($counterPerc);
-                        unset($jiff);
-                        unset($jiffPerc);
-                        unset($style);
-                        unset($name);
+                        $style    = 'background-color:#74B4CA; border-top:2px solid black;';
                     }
+                    elseif ( 'TOTAL' == $process )
+                    {
+                        $style    = 'background-color:#C8DAE6; border-top:2px solid black;';
+                        $name     = $user;
+                    }
+                    $result      .= sprintf( '<tr style="%s">', $style);
+                    $result      .= sprintf( '<td>%s</td>', $name );
+                    $result      .= sprintf( '<td width="30" align="right">%d</td>', $procs );
+
+                    foreach ( $this->_counters as $counterName ) {
+                        $value  = empty($stats[$user][$process][$counterName]) ? 0 : $stats[$user][$process][$counterName];
+                        if ( empty($value) )
+                        {
+                            $result      .= '<td width="30">&nbsp;</td>';
+                            $result      .= '<td width="60">&nbsp;</td>';
+                        }
+                        else
+                        {
+                            $valuePerc    = $value * 100 / $valueTotal[$counterName];
+                            $result      .= sprintf( '<td width="30" align="right">%d</td>', $value );
+                            $result      .= sprintf( '<td width="60" align="right">%.02f%%</td>', $valuePerc );
+                        }
+                    }
+
+                    foreach ( $this->_counters as $counterName ) {
+                        $counterKey   = $counterName.'_counter';
+                        $counter      = empty($stats[$user][$process][$counterKey]) ? 0 : $stats[$user][$process][$counterKey];
+                        if ( empty($counter) )
+                        {
+                            $result      .= '<td>&nbsp;</td>';
+                            $result      .= '<td>&nbsp;</td>';
+                        }
+                        else
+                        {
+                            $counterPerc  = $counter * 100 / $counterTotal[$counterName];
+                            $result      .= sprintf( '<td align="right">%d</td>', $counter );
+                            $result      .= sprintf( '<td align="right">%.02f%%</td>', $counterPerc );
+                        }
+                    }
+                    $result      .= '</tr>'."\n";
+                    unset($counter);
+                    unset($counterPerc);
+                    unset($jiff);
+                    unset($jiffPerc);
+                    unset($style);
+                    unset($name);
                 }
                 unset($process);
                 unset($userStats);
@@ -603,7 +602,6 @@ class ProcStats {
 
         $userProcStats = $this->_getUserProcStats( $statData, $this->_prevStatData );
         $this->_prevStatData = $statData;
-        //var_dump($userProcStats);
 
         foreach ( $userProcStats as $uid => &$nil )
         {
@@ -1004,6 +1002,9 @@ class ProcStats {
                 $process      = $statFields[1];
                 $process      = trim( $process, ':()-0123456789/' );
                 $process      = preg_replace('/\/\d+$/','',$process);
+                if ( 1 == $pid) {
+                    $process = '[init]';
+                }
                 $parentPid = $statFields[3];
 
                 if ( !isset( $result[$pid]['childPids'] ) )
@@ -1036,13 +1037,16 @@ class ProcStats {
             unset($statFields);
 
             //// Process IO Data
+            // For info about the '/proc/PID/io' fields:
+            // http://www.kernel.org/doc/man-pages/online/pages/man5/proc.5.html
+            // search for "/proc/[pid]/io"
             $ioLines = explode("\n",$ioData);
             $match = array();
             foreach( $ioLines as $ioLine ) {
-                if ( preg_match('/read_bytes:\s+(\d+)/',$ioLine,$match) ) {
+                if ( preg_match('/^read_bytes:\s+(\d+)/',$ioLine,$match) ) {
                     $result[$pid]['readBytes'] = $match[1];
                 }
-                if ( preg_match('/write_bytes:\s+(\d+)/',$ioLine,$match) ) {
+                if ( preg_match('/^write_bytes:\s+(\d+)/',$ioLine,$match) ) {
                     $result[$pid]['writeBytes'] = $match[1];
                 }
             }
@@ -1095,6 +1099,10 @@ class ProcStats {
     protected function _debugTree( $statData, $pid=1, $level=0 )
     {
         $result = '';
+        if ( 1 == $pid ) {
+            $result .= 'PID - NAME - USER | thisJiff / deadChildJiff | R readBytes | W writeBytes |';
+            $result .= "\n\n";
+        }
         $result .= str_repeat(' ',$level*8);
         $result .= $pid . ' - '.$statData[$pid]['name'];
         $result .= ' - '.$this->_uidToUser($statData[$pid]['uid']);
@@ -1102,9 +1110,9 @@ class ProcStats {
         $result .= $statData[$pid]['thisJiff'];
         $result .= ' / ';
         $result .= $statData[$pid]['deadChildJiff'];
-        $result .= ' | ';
+        $result .= ' | R ';
         $result .= $statData[$pid]['readBytes'];
-        $result .= ' / ';
+        $result .= ' | W ';
         $result .= $statData[$pid]['writeBytes'];
         $result .= "\n";
         foreach ( $statData[$pid]['childPids'] as $childPid )
