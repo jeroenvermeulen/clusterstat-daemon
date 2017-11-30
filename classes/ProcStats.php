@@ -933,6 +933,24 @@ class ProcStats {
                 unset($iJiff);
             }
         }
+
+        foreach ($prevStatData as $pid => $prevProcInfo) {
+            if ( !isset($statData[$pid]) ) {
+                // Process has died since last collection of stats
+                if ( !empty($prevProcInfo['parentPid']) ) {
+                    $parentPid = $prevProcInfo['parentPid'];
+                    if ( !empty($statData[$parentPid]) && isset($statData[$parentPid]['uid']) ) {
+                        $uid = $statData[$parentPid]['uid'];
+                        $procName = $statData[$parentPid]['name'];
+                        // When a child ends, all IO counters are added to the parent.
+                        // We substract ended child io bytes from parent, because we keep the ended child's data.
+                        $result[$uid][$procName]['ioread'] -= $prevProcInfo['readBytes'];
+                        $result[$uid][$procName]['iowrite'] -= $prevProcInfo['writeBytes'];
+                    }
+                }
+            }
+        }
+
         unset($procInfo);
 
         return $result;
