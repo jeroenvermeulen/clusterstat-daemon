@@ -362,7 +362,7 @@ class ProcStats {
                 $result .= "graph_title IO per User\n";
                 $result .= "graph_vlabel Bytes/sec  read(-) / write(+) \n";
                 $result .= "graph_info MH Disk IO in bytes per second.\n";
-                $result .= "graph_args --slope-mode\n";
+                $result .= "graph_args --slope-mode --base 1024\n";
 
                 $fieldName = 'TOTAL';
                 $result .= "graph_category system\n";
