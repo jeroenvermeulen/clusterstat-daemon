@@ -365,7 +365,7 @@ class ProcStats {
                 $result .= "graph_args --slope-mode --base 1024\n";
 
                 $fieldName = 'TOTAL';
-                $result .= "graph_category system\n";
+                $result .= "graph_category disk\n";
                 $result .= "TOTAL_r.label TOTAL read\n";
                 $result .= "TOTAL_r.draw LINE1\n";
                 $result .= "TOTAL_r.colour eeeeee\n";
@@ -858,6 +858,7 @@ class ProcStats {
      */
     protected function _collectProcStats()
     {
+        static $prevResult = array();
         $result = array();
         $dirHandle = opendir($this->_procPath);
         if ( false === $dirHandle )
@@ -877,6 +878,17 @@ class ProcStats {
             closedir( $dirHandle );
         }
         unset($dirHandle);
+        foreach(array_keys($prevResult) as $prevPid) {
+            $parentPid = $prevResult[$prevPid]['parentPid'];
+            if ( !isset($result[$prevPid]) && isset($result[$parentPid]) ) {
+                // $prevPid has disappeared.
+                // When a child ends, all IO counters are added to the parent.
+                // We substract ended child io bytes from parent, because we keep the ended child's data.
+                $result[$parentPid]['readBytes'] -= $prevResult[$prevPid]['readBytes'];
+                $result[$parentPid]['writeBytes'] -= $prevResult[$prevPid]['writeBytes'];
+            }
+        }
+        $prevResult = $result;
         return $result;
     }
 
@@ -934,22 +946,22 @@ class ProcStats {
             }
         }
 
-        foreach ($prevStatData as $pid => $prevProcInfo) {
-            if ( !isset($statData[$pid]) ) {
-                // Process has died since last collection of stats
-                if ( !empty($prevProcInfo['parentPid']) ) {
-                    $parentPid = $prevProcInfo['parentPid'];
-                    if ( !empty($statData[$parentPid]) && isset($statData[$parentPid]['uid']) ) {
-                        $uid = $statData[$parentPid]['uid'];
-                        $procName = $statData[$parentPid]['name'];
-                        // When a child ends, all IO counters are added to the parent.
-                        // We substract ended child io bytes from parent, because we keep the ended child's data.
-                        $result[$uid][$procName]['ioread'] -= $prevProcInfo['readBytes'];
-                        $result[$uid][$procName]['iowrite'] -= $prevProcInfo['writeBytes'];
-                    }
-                }
-            }
-        }
+//        foreach ($prevStatData as $pid => $prevProcInfo) {
+//            if ( !isset($statData[$pid]) ) {
+//                // Process has died since last collection of stats
+//                if ( !empty($prevProcInfo['parentPid']) ) {
+//                    $parentPid = $prevProcInfo['parentPid'];
+//                    if ( !empty($statData[$parentPid]) && isset($statData[$parentPid]['uid']) ) {
+//                        $uid = $statData[$parentPid]['uid'];
+//                        $procName = $statData[$parentPid]['name'];
+//                        // When a child ends, all IO counters are added to the parent.
+//                        // We substract ended child io bytes from parent, because we keep the ended child's data.
+//                        $result[$uid][$procName]['ioread'] -= $prevProcInfo['readBytes'];
+//                        $result[$uid][$procName]['iowrite'] -= $prevProcInfo['writeBytes'];
+//                    }
+//                }
+//            }
+//        }
 
         unset($procInfo);
 
