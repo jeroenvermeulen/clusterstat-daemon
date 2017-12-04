@@ -225,7 +225,9 @@ class Log {
     private static function _writeMessage($line, $fd) {
         $line = date('Y-m-d H:i:s')."  ".(is_null(self::$_module) ? '' : '['.self::$_module.'] ')."$line".PHP_EOL;
         fwrite($fd, $line);
-
+        if( class_exists('Daemonizer') && Daemonizer::$debug ) {
+            echo $line;
+        }
         return $line;
     }
 }

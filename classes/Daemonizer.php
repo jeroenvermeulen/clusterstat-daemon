@@ -32,6 +32,7 @@ class Daemonizer {
     public static $stdout;
     public static $stderr;
     public static $stdin;
+    public static $debug = false;
 
     /**
      * Private static properties
@@ -186,6 +187,7 @@ class Daemonizer {
             self::$_scriptArguments = array();
         }
         self::$_shouldUpstart = !empty($_SERVER['UPSTART_JOB']);
+        self::$debug = self::$_shouldDebug;
         if(@is_writable('/tmp/')) {
             $tmpDir = '/tmp/';
         } elseif(function_exists('sys_get_temp_dir')) {

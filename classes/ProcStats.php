@@ -42,13 +42,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *   /procstats/munin/procs/
  *   /procstats/munin/io/
  *   /procstats_detail_html
- *   /procstats_debugtree
+ *   /procstats_debugcollect
  *   
  */
 class ProcStats {
 
     protected $_procPath     = '/proc';
-    protected $_prevStatData = array();
     protected $_database     = null;
     protected $_uidCache     = array();
     protected $_sqliteFile   = 'userstats.sqlite';
@@ -102,6 +101,12 @@ class ProcStats {
 
             if ( is_array($startStats) && is_array($endStats) )
             {
+                if ($this->_isDebugEnabled()) {
+                    // var_dump($startStats);
+                    // echo $this->_debugCollectTree($startStats);
+                    // echo $this->_debugCollectTree($endStats);
+                }
+
                 foreach ( $this->_dbData as $uid => &$nil ) // for each user
                 {
                     $user = $this->_uidToUser($uid);
@@ -436,6 +441,8 @@ class ProcStats {
     }
 
     /**
+     * URL: /procstats_detail_html
+     *
      * Returns a HTML layout detailed overview
      *
      * @param array $requestInfo
@@ -597,11 +604,14 @@ class ProcStats {
      */
     public function timerCollectStats()
     {
+        static $prevStatData = array();
         $statData = $this->_collectProcStats();
-        // echo $this->_debugTree( $statData ); // Useful for debugging, outputs to stdout in debug mode
+        $userProcStats = $this->_getUserProcStats( $statData, $prevStatData );
+        $prevStatData = $statData;
 
-        $userProcStats = $this->_getUserProcStats( $statData, $this->_prevStatData );
-        $this->_prevStatData = $statData;
+        if ( $this->_isDebugEnabled()) {
+            echo $this->_debugUserProcStats($userProcStats);
+        }
 
         foreach ( $userProcStats as $uid => &$nil )
         {
@@ -647,14 +657,16 @@ class ProcStats {
     }
 
     /**
+     * URL:  /procstats_debugcollect
+     *
      * Outputs a tree useful for debugging
      *
      * @return string - ascii art tree with collected process information
      */
-    public function debugTree()
+    public function debugCollect()
     {
         $statData = $this->_collectProcStats();
-        return $this->_debugTree( $statData );
+        return $this->_debugCollectTree( $statData );
     }
 
     /**
@@ -850,7 +862,7 @@ class ProcStats {
      *                        $result[ PID ][ 'parentPid' ]     = Integer
      *                        $result[ PID ][ 'uid' ]           = Integer
      *                        $result[ PID ][ 'thisJiff' ]      = Integer
-     *                        $result[ PID ][ 'deadChildJiff' ] = Integer
+     *                        $result[ PID ][ 'endedChildJiff' ] = Integer
      *                        $result[ PID ][ 'time' ]          = Integer
      *                        $result[ PID ][ 'readByes' ]      = Integer
      *                        $result[ PID ][ 'writeBytes' ]    = Integer
@@ -858,7 +870,7 @@ class ProcStats {
      */
     protected function _collectProcStats()
     {
-        static $prevResult = array();
+        // static $prevResult = array();
         $result = array();
         $dirHandle = opendir($this->_procPath);
         if ( false === $dirHandle )
@@ -878,6 +890,7 @@ class ProcStats {
             closedir( $dirHandle );
         }
         unset($dirHandle);
+        /*
         foreach(array_keys($prevResult) as $prevPid) {
             $parentPid = $prevResult[$prevPid]['parentPid'];
             if ( !isset($result[$prevPid]) && isset($result[$parentPid]) ) {
@@ -889,6 +902,7 @@ class ProcStats {
             }
         }
         $prevResult = $result;
+        */
         return $result;
     }
 
@@ -930,6 +944,9 @@ class ProcStats {
 
                 $result[$uid][$procName]['procs']++;
                 foreach ( $counters as $prevKey => $resultKey ) {
+                    if (!isset($result[$uid][$procName][$resultKey])) {
+                        $result[$uid][$procName][$resultKey] = 0;
+                    }
                     $value = $procInfo[$prevKey];
                     if (isset($prevStatData[$pid][$prevKey])) {
                         // Process was already running previous collect time
@@ -946,22 +963,24 @@ class ProcStats {
             }
         }
 
-//        foreach ($prevStatData as $pid => $prevProcInfo) {
-//            if ( !isset($statData[$pid]) ) {
-//                // Process has died since last collection of stats
-//                if ( !empty($prevProcInfo['parentPid']) ) {
-//                    $parentPid = $prevProcInfo['parentPid'];
-//                    if ( !empty($statData[$parentPid]) && isset($statData[$parentPid]['uid']) ) {
-//                        $uid = $statData[$parentPid]['uid'];
-//                        $procName = $statData[$parentPid]['name'];
-//                        // When a child ends, all IO counters are added to the parent.
-//                        // We substract ended child io bytes from parent, because we keep the ended child's data.
-//                        $result[$uid][$procName]['ioread'] -= $prevProcInfo['readBytes'];
-//                        $result[$uid][$procName]['iowrite'] -= $prevProcInfo['writeBytes'];
-//                    }
-//                }
-//            }
-//        }
+        /*
+        foreach ($prevStatData as $pid => $prevProcInfo) {
+            if ( !isset($statData[$pid]) ) {
+                // Process has died since last collection of stats
+                if ( !empty($prevProcInfo['parentPid']) ) {
+                    $parentPid = $prevProcInfo['parentPid'];
+                    if ( !empty($statData[$parentPid]) && isset($statData[$parentPid]['uid']) ) {
+                        $uid = $statData[$parentPid]['uid'];
+                        $procName = $statData[$parentPid]['name'];
+                        // When a child ends, all IO counters are added to the parent.
+                        // We substract ended child io bytes from parent, because we keep the ended child's data.
+                        $result[$uid][$procName]['ioread'] -= $prevProcInfo['readBytes'];
+                        $result[$uid][$procName]['iowrite'] -= $prevProcInfo['writeBytes'];
+                    }
+                }
+            }
+        }
+        */
 
         unset($procInfo);
 
@@ -1054,9 +1073,9 @@ class ProcStats {
                 $result[$pid]['thisJiff'] += $statFields[13]; // utime = user mode
                 $result[$pid]['thisJiff'] += $statFields[14]; // stime = kernel mode
 
-                $result[$pid]['deadChildJiff'] = 0;
-                $result[$pid]['deadChildJiff'] += $statFields[15]; // cutime = ended children user mode
-                $result[$pid]['deadChildJiff'] += $statFields[16]; // cstime = ended children kernel mode
+                $result[$pid]['endedChildJiff'] = 0;
+                $result[$pid]['endedChildJiff'] += $statFields[15]; // cutime = ended children user mode
+                $result[$pid]['endedChildJiff'] += $statFields[16]; // cstime = ended children kernel mode
 
                 $result[$pid]['time'] = $fMicroTime;
 
@@ -1126,29 +1145,52 @@ class ProcStats {
      * @param int $level      - Nesting level
      * @return string - ascii art tree with collected process info
      */
-    protected function _debugTree( $statData, $pid=1, $level=0 )
+    protected function _debugCollectTree( $statData, $pid=1, $level=0 )
     {
         $result = '';
         if ( 1 == $pid ) {
-            $result .= 'PID - NAME - USER | thisJiff / deadChildJiff | R readBytes | W writeBytes |';
+            $result .= 'PID - NAME - USER | thisJiff / endedChildJiff | R readBytes | W writeBytes |';
             $result .= "\n\n";
         }
-        $result .= str_repeat(' ',$level*8);
-        $result .= $pid . ' - '.$statData[$pid]['name'];
-        $result .= ' - '.$this->_uidToUser($statData[$pid]['uid']);
-        $result .= ' | ';
-        $result .= $statData[$pid]['thisJiff'];
-        $result .= ' / ';
-        $result .= $statData[$pid]['deadChildJiff'];
-        $result .= ' | R ';
-        $result .= $statData[$pid]['readBytes'];
-        $result .= ' | W ';
-        $result .= $statData[$pid]['writeBytes'];
-        $result .= "\n";
-        foreach ( $statData[$pid]['childPids'] as $childPid )
-        {
-            $result .= $this->_debugTree( $statData, $childPid, $level+1 );
+        if ( !isset($statData[$pid]) ) {
+            $result .= "[EMPTY]\n";
+        } else {
+            $result .= str_repeat(' ',$level*8);
+            $result .= $pid . ' - '.$statData[$pid]['name'];
+            $result .= ' - '.$this->_uidToUser($statData[$pid]['uid']);
+            $result .= ' | ';
+            $result .= $statData[$pid]['thisJiff'];
+            $result .= ' / ';
+            $result .= $statData[$pid]['endedChildJiff'];
+            $result .= ' | R ';
+            $result .= $statData[$pid]['readBytes'];
+            $result .= ' | W ';
+            $result .= $statData[$pid]['writeBytes'];
+            $result .= "\n";
+            foreach ( $statData[$pid]['childPids'] as $childPid )
+            {
+                $result .= $this->_debugCollectTree( $statData, $childPid, $level+1 );
+            }
         }
+        return $result;
+    }
+
+    protected function _debugUserProcStats($userProcStats) {
+        $result = '';
+        foreach( array_keys($userProcStats) as $uid ) {
+            foreach ($userProcStats[$uid] as $process => $procData) {
+                $result .= sprintf( "%-5s %-15s %-20s p:%-3s  J:%-10s  R:%-8s  W:%-8s\n",
+                    $this->_uidToUser($uid),
+                    $process,
+                    $procData['time'],
+                    $procData['procs'],
+                    $procData['jiffies'],
+                    $procData['ioread'],
+                    $procData['iowrite']
+                );
+            }
+        }
+        $result .= "\n";
         return $result;
     }
 
@@ -1261,6 +1303,11 @@ class ProcStats {
     {
         $number = $number % pow(2,32);
         return $number;
+    }
+
+    protected function _isDebugEnabled()
+    {
+        return ( class_exists('Daemonizer') && Daemonizer::$debug );
     }
 
 }
