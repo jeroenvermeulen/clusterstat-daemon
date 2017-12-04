@@ -397,10 +397,10 @@ class ProcStats {
                 if ( 'root' == $fieldName ) {
                     $fieldName = 'uroot';
                 }
+                // && ( $stats[$user]['TOTAL']['ioread_counter'] > 100 ||
+                //      $stats[$user]['TOTAL']['iowrite_counter'] > 100 )
                 if (   isset($stats[$user]['TOTAL']['ioread_counter'])
-                    && isset($stats[$user]['TOTAL']['iowrite_counter'])
-                    && ( $stats[$user]['TOTAL']['ioread_counter'] > 100 ||
-                         $stats[$user]['TOTAL']['iowrite_counter'] > 100 ) )
+                    && isset($stats[$user]['TOTAL']['iowrite_counter']) )
                 {
                     if ( $config ) {
                         $result   .= sprintf( "%s_r.label %s read\n", $fieldName, $user );
